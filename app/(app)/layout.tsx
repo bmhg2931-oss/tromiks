@@ -24,9 +24,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const role = (profile?.role ?? "secretary") as UserRole;
 
+  const { data: campaigns } = await supabase
+    .from("campaigns")
+    .select("id, name")
+    .is("parent_campaign_id", null)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
   return (
     <div className="min-h-screen flex">
-      <Sidebar />
+      <Sidebar campaigns={campaigns ?? []} />
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="mr-auto bg-gradient-to-b from-ink to-[#243024] text-[#eef2e4] pr-24 pl-5 py-3.5 flex items-center gap-3 shadow sticky top-0 z-30 rounded-br-3xl">
           <ThemeToggle />

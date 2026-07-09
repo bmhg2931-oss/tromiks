@@ -147,6 +147,9 @@ export type Pledge = {
 export type CampaignStatus = "פעיל" | "הושלם" | "בארכיון";
 export const CAMPAIGN_STATUSES: CampaignStatus[] = ["פעיל", "הושלם", "בארכיון"];
 
+export type CampaignTabKey = "מיפוי" | "הזמנה" | "התרמה";
+export const CAMPAIGN_TAB_OPTIONS: CampaignTabKey[] = ["מיפוי", "הזמנה", "התרמה"];
+
 export type Campaign = {
   id: string;
   name: string;
@@ -157,8 +160,92 @@ export type Campaign = {
   start_date: string | null;
   end_date: string | null;
   status: CampaignStatus;
+  enabled_tabs: string[];
   created_at: string;
   updated_at: string;
+};
+
+export type CampaignInvitationStatus = "לא הוזמן" | "הוזמן" | "אישר הגעה" | "סירב";
+export const CAMPAIGN_INVITATION_STATUSES: CampaignInvitationStatus[] = ["לא הוזמן", "הוזמן", "אישר הגעה", "סירב"];
+
+export type CampaignContactInvitation = {
+  id: string;
+  campaign_id: string;
+  contact_id: string;
+  status: CampaignInvitationStatus;
+  invited_at: string | null;
+  invited_by: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CampaignMappingStatus = "טרם טופל" | "נוצר קשר" | "בתהליך" | "התחייב" | "שילם" | "סירב" | "לא רלוונטי";
+export const CAMPAIGN_MAPPING_STATUSES: CampaignMappingStatus[] = [
+  "טרם טופל",
+  "נוצר קשר",
+  "בתהליך",
+  "התחייב",
+  "שילם",
+  "סירב",
+  "לא רלוונטי",
+];
+
+export type CampaignContactMapping = {
+  id: string;
+  campaign_id: string;
+  contact_id: string;
+  target_amount: number | null;
+  potential_amount: number | null;
+  status: CampaignMappingStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CampaignMappingDimension = {
+  id: string;
+  campaign_id: string;
+  name: string;
+  sort_order: number;
+};
+
+export type CampaignMappingDimensionLevel = {
+  id: string;
+  dimension_id: string;
+  label: string;
+  sort_order: number;
+};
+
+export type CampaignContactDimensionScore = {
+  id: string;
+  mapping_id: string;
+  dimension_id: string;
+  level_id: string;
+};
+
+export type CampaignCallLog = {
+  id: string;
+  campaign_id: string;
+  contact_id: string;
+  called_by: string | null;
+  call_date: string;
+  outcome: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+export type CampaignReminder = {
+  id: string;
+  campaign_id: string;
+  contact_id: string;
+  due_date: string;
+  note: string | null;
+  assigned_to: string | null;
+  completed: boolean;
+  completed_at: string | null;
+  created_by: string | null;
+  created_at: string;
 };
 
 export function canSeeCampaigns(role: UserRole) {

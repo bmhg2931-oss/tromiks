@@ -16,6 +16,7 @@ export default async function TrashSettingsPage() {
     { data: handlers },
     { data: cities },
     { data: files },
+    { data: campaigns },
     { data: profiles },
   ] = await Promise.all([
     supabase.from("contacts").select("id, first_name, last_name, phone, deleted_at, deleted_by").not("deleted_at", "is", null),
@@ -34,6 +35,7 @@ export default async function TrashSettingsPage() {
       .from("contact_files")
       .select("id, file_name, deleted_at, deleted_by, contacts(first_name, last_name)")
       .not("deleted_at", "is", null),
+    supabase.from("campaigns").select("id, name, goal_amount, goal_currency, deleted_at, deleted_by").not("deleted_at", "is", null),
     supabase.from("profiles").select("id, full_name"),
   ]);
 
@@ -121,6 +123,16 @@ export default async function TrashSettingsPage() {
         details: { "שם קובץ": f.file_name, "איש קשר": contactName },
       };
     }),
+    ...(campaigns ?? []).map((c): TrashItem => ({
+      id: c.id,
+      table: "campaigns",
+      typeLabel: "קמפיין",
+      title: c.name,
+      subtitle: c.goal_amount ? `יעד: ${money(c.goal_amount, c.goal_currency)}` : undefined,
+      deletedAt: c.deleted_at!,
+      deletedByName: deleterName(c.deleted_by),
+      details: { שם: c.name, יעד: c.goal_amount ? money(c.goal_amount, c.goal_currency) : "—" },
+    })),
   ].sort((a, b) => (a.deletedAt < b.deletedAt ? 1 : -1));
 
   return (

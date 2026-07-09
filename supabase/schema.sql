@@ -905,6 +905,266 @@ create trigger trg_campaigns_single_level before insert or update on campaigns
   for each row execute function enforce_campaign_single_level();
 
 -- =========================================================
+-- 34. שיוך אוטומטי לקמפיין דרך שדה הקטגוריה: כל קמפיין/תת-קמפיין יוצר
+--    אוטומטית קטגוריית תרומה תואמת (בשם הקמפיין + הסיומת "(קמפיין)"), ובחירת
+--    אותה קטגוריה בטופס הוספת תרומה/התחייבות משייכת את הרשומה לקמפיין
+--    אוטומטית - אין צורך בשדה נפרד לבחירת קמפיין בטופס הקיים.
+--    *** קטע חדש בלבד ***
+-- =========================================================
+alter table donation_categories add column if not exists campaign_id uuid references campaigns(id) on delete set null;
+create unique index if not exists idx_donation_categories_campaign_unique
+  on donation_categories (campaign_id) where campaign_id is not null;
+
+-- יוצר/מעדכן את קטגוריית התרומה המשויכת לקמפיין בכל הוספה/עדכון של קמפיין (שם +
+-- מצב פעיל בהתאם לסטטוס המחיקה הרכה של הקמפיין). שימוש ב-ON CONFLICT (name) כדי
+-- לא להיכשל אם קיימת כבר קטגוריה בשם זהה במקרה נדיר של התנגשות שמות בין קמפיינים
+create or replace function sync_campaign_category()
+returns trigger as $$
+declare
+  cat_name text;
+begin
+  cat_name := new.name || ' (קמפיין)';
+  if tg_op = 'INSERT' then
+    insert into donation_categories (name, campaign_id, active, sort_order)
+    values (cat_name, new.id, new.deleted_at is null, (select coalesce(max(sort_order), 0) + 1 from donation_categories))
+    on conflict (name) do update set campaign_id = excluded.campaign_id, active = excluded.active;
+  else
+    update donation_categories set name = cat_name, active = (new.deleted_at is null)
+    where campaign_id = new.id;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists trg_campaigns_sync_category on campaigns;
+create trigger trg_campaigns_sync_category after insert or update on campaigns
+  for each row execute function sync_campaign_category();
+
+-- לפני שמירת התחייבות/תשלום: אם הקטגוריה שנבחרה (category עבור pledges, purpose
+-- עבור donations) תואמת קטגוריה שנוצרה מקמפיין, ה-campaign_id מוגדר בהתאם;
+-- אחרת מנוקה לריק (כך שהחלפת קטגוריה מעדכנת את השיוך אוטומטית, גם בעריכה)
+create or replace function sync_pledge_campaign()
+returns trigger as $$
+begin
+  select campaign_id into new.campaign_id from donation_categories where name = new.category limit 1;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_pledges_sync_campaign on pledges;
+create trigger trg_pledges_sync_campaign before insert or update on pledges
+  for each row execute function sync_pledge_campaign();
+
+create or replace function sync_donation_campaign()
+returns trigger as $$
+begin
+  select campaign_id into new.campaign_id from donation_categories where name = new.purpose limit 1;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_donations_sync_campaign on donations;
+create trigger trg_donations_sync_campaign before insert or update on donations
+  for each row execute function sync_donation_campaign();
+
+-- =========================================================
+-- 35. ניהול התרמה לקמפיין: מיפוי אנשי קשר (יעד/פוטנציאל/ממדי דירוג
+--    מותאמים-אישית עם דרגות מוגדרות לכל קמפיין), סטטוס תהליך קבוע אחד לכל
+--    המערכת, ומרכזיית טלפנות (תיעוד שיחות + תזכורות) משויכת לקמפיין - עם
+--    אפשרות לעיין בהיסטוריה חוצת-קמפיינים של אותו איש קשר (שליפה לפי
+--    contact_id בלבד, ללא סינון לפי campaign_id).
+--    *** קטע חדש בלבד ***
+-- =========================================================
+
+-- מיפוי איש קשר עבור קמפיין ספציפי: יעד גיוס, פוטנציאל, וסטטוס תהליך
+create table if not exists campaign_contact_mappings (
+  id uuid primary key default gen_random_uuid(),
+  campaign_id uuid not null references campaigns(id) on delete cascade,
+  contact_id uuid not null references contacts(id) on delete cascade,
+  target_amount numeric(12,2),
+  potential_amount numeric(12,2),
+  status text not null default 'טרם טופל'
+    check (status in ('טרם טופל','נוצר קשר','בתהליך','התחייב','שילם','סירב','לא רלוונטי')),
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (campaign_id, contact_id)
+);
+
+create index if not exists idx_campaign_mappings_campaign on campaign_contact_mappings (campaign_id);
+create index if not exists idx_campaign_mappings_contact on campaign_contact_mappings (contact_id);
+
+drop trigger if exists trg_campaign_mappings_updated on campaign_contact_mappings;
+create trigger trg_campaign_mappings_updated before update on campaign_contact_mappings
+  for each row execute function set_updated_at();
+
+-- ממדי דירוג מותאמים-אישית לקמפיין (למשל "יכולת כלכלית" בקמפיין אחד, "זיקה
+-- לקהילה" באחר) - כל ממד מוגדר ע"י מנהל הקמפיין עם רשימת הדרגות (תפריט נפתח)
+-- הספציפית שלו
+create table if not exists campaign_mapping_dimensions (
+  id uuid primary key default gen_random_uuid(),
+  campaign_id uuid not null references campaigns(id) on delete cascade,
+  name text not null,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists campaign_mapping_dimension_levels (
+  id uuid primary key default gen_random_uuid(),
+  dimension_id uuid not null references campaign_mapping_dimensions(id) on delete cascade,
+  label text not null,
+  sort_order integer not null default 0
+);
+
+create index if not exists idx_campaign_dimensions_campaign on campaign_mapping_dimensions (campaign_id);
+create index if not exists idx_campaign_dimension_levels_dimension on campaign_mapping_dimension_levels (dimension_id);
+
+-- הדרגה שנבחרה לאיש קשר בממד מסוים, עבור מיפוי קמפיין ספציפי
+create table if not exists campaign_contact_dimension_scores (
+  id uuid primary key default gen_random_uuid(),
+  mapping_id uuid not null references campaign_contact_mappings(id) on delete cascade,
+  dimension_id uuid not null references campaign_mapping_dimensions(id) on delete cascade,
+  level_id uuid not null references campaign_mapping_dimension_levels(id) on delete cascade,
+  unique (mapping_id, dimension_id)
+);
+
+create index if not exists idx_dimension_scores_mapping on campaign_contact_dimension_scores (mapping_id);
+
+-- מרכזיית טלפנות: תיעוד שיחות משויך לקמפיין + איש קשר
+create table if not exists campaign_call_logs (
+  id uuid primary key default gen_random_uuid(),
+  campaign_id uuid not null references campaigns(id) on delete cascade,
+  contact_id uuid not null references contacts(id) on delete cascade,
+  called_by uuid references auth.users(id),
+  call_date timestamptz not null default now(),
+  outcome text,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_campaign_call_logs_contact on campaign_call_logs (contact_id);
+create index if not exists idx_campaign_call_logs_campaign on campaign_call_logs (campaign_id);
+
+-- תזכורות פעולה המשכית, משויכות לקמפיין + איש קשר
+create table if not exists campaign_reminders (
+  id uuid primary key default gen_random_uuid(),
+  campaign_id uuid not null references campaigns(id) on delete cascade,
+  contact_id uuid not null references contacts(id) on delete cascade,
+  due_date date not null,
+  note text,
+  assigned_to uuid references auth.users(id),
+  completed boolean not null default false,
+  completed_at timestamptz,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_campaign_reminders_due on campaign_reminders (due_date) where not completed;
+create index if not exists idx_campaign_reminders_contact on campaign_reminders (contact_id);
+
+-- RLS: אותה מדיניות הרשאות בדיוק כמו קמפיינים/תרומות (admin/treasurer/secretary
+-- עורכים, rabbi צופה בלבד, gabai ללא גישה כלל)
+alter table campaign_contact_mappings enable row level security;
+alter table campaign_mapping_dimensions enable row level security;
+alter table campaign_mapping_dimension_levels enable row level security;
+alter table campaign_contact_dimension_scores enable row level security;
+alter table campaign_call_logs enable row level security;
+alter table campaign_reminders enable row level security;
+
+create policy "campaign_mappings_select" on campaign_contact_mappings for select
+  to authenticated using (my_role() in ('admin','treasurer','secretary','rabbi'));
+create policy "campaign_mappings_insert" on campaign_contact_mappings for insert
+  to authenticated with check (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_mappings_update" on campaign_contact_mappings for update
+  to authenticated using (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_mappings_delete" on campaign_contact_mappings for delete
+  to authenticated using (my_role() in ('admin','treasurer'));
+
+create policy "campaign_dimensions_select" on campaign_mapping_dimensions for select
+  to authenticated using (my_role() in ('admin','treasurer','secretary','rabbi'));
+create policy "campaign_dimensions_insert" on campaign_mapping_dimensions for insert
+  to authenticated with check (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_dimensions_update" on campaign_mapping_dimensions for update
+  to authenticated using (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_dimensions_delete" on campaign_mapping_dimensions for delete
+  to authenticated using (my_role() in ('admin','treasurer'));
+
+create policy "campaign_dimension_levels_select" on campaign_mapping_dimension_levels for select
+  to authenticated using (my_role() in ('admin','treasurer','secretary','rabbi'));
+create policy "campaign_dimension_levels_insert" on campaign_mapping_dimension_levels for insert
+  to authenticated with check (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_dimension_levels_update" on campaign_mapping_dimension_levels for update
+  to authenticated using (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_dimension_levels_delete" on campaign_mapping_dimension_levels for delete
+  to authenticated using (my_role() in ('admin','treasurer'));
+
+create policy "campaign_dimension_scores_select" on campaign_contact_dimension_scores for select
+  to authenticated using (my_role() in ('admin','treasurer','secretary','rabbi'));
+create policy "campaign_dimension_scores_insert" on campaign_contact_dimension_scores for insert
+  to authenticated with check (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_dimension_scores_update" on campaign_contact_dimension_scores for update
+  to authenticated using (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_dimension_scores_delete" on campaign_contact_dimension_scores for delete
+  to authenticated using (my_role() in ('admin','treasurer','secretary'));
+
+create policy "campaign_call_logs_select" on campaign_call_logs for select
+  to authenticated using (my_role() in ('admin','treasurer','secretary','rabbi'));
+create policy "campaign_call_logs_insert" on campaign_call_logs for insert
+  to authenticated with check (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_call_logs_update" on campaign_call_logs for update
+  to authenticated using (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_call_logs_delete" on campaign_call_logs for delete
+  to authenticated using (my_role() in ('admin','treasurer'));
+
+create policy "campaign_reminders_select" on campaign_reminders for select
+  to authenticated using (my_role() in ('admin','treasurer','secretary','rabbi'));
+create policy "campaign_reminders_insert" on campaign_reminders for insert
+  to authenticated with check (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_reminders_update" on campaign_reminders for update
+  to authenticated using (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_reminders_delete" on campaign_reminders for delete
+  to authenticated using (my_role() in ('admin','treasurer','secretary'));
+
+-- =========================================================
+-- 36. טאבים ניתנים לבחירה לכל קמפיין (מיפוי/הזמנה/התרמה, נבחרים בעת יצירת
+--    הקמפיין), ומעקב סטטוס הזמנה לקמפיין לכל איש קשר.
+--    *** קטע חדש בלבד ***
+-- =========================================================
+alter table campaigns add column if not exists enabled_tabs text[] not null default array['מיפוי','הזמנה','התרמה'];
+
+create table if not exists campaign_contact_invitations (
+  id uuid primary key default gen_random_uuid(),
+  campaign_id uuid not null references campaigns(id) on delete cascade,
+  contact_id uuid not null references contacts(id) on delete cascade,
+  status text not null default 'לא הוזמן'
+    check (status in ('לא הוזמן','הוזמן','אישר הגעה','סירב')),
+  invited_at timestamptz,
+  invited_by uuid references auth.users(id),
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (campaign_id, contact_id)
+);
+
+create index if not exists idx_campaign_invitations_campaign on campaign_contact_invitations (campaign_id);
+create index if not exists idx_campaign_invitations_contact on campaign_contact_invitations (contact_id);
+
+drop trigger if exists trg_campaign_invitations_updated on campaign_contact_invitations;
+create trigger trg_campaign_invitations_updated before update on campaign_contact_invitations
+  for each row execute function set_updated_at();
+
+alter table campaign_contact_invitations enable row level security;
+
+create policy "campaign_invitations_select" on campaign_contact_invitations for select
+  to authenticated using (my_role() in ('admin','treasurer','secretary','rabbi'));
+create policy "campaign_invitations_insert" on campaign_contact_invitations for insert
+  to authenticated with check (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_invitations_update" on campaign_contact_invitations for update
+  to authenticated using (my_role() in ('admin','treasurer','secretary'));
+create policy "campaign_invitations_delete" on campaign_contact_invitations for delete
+  to authenticated using (my_role() in ('admin','treasurer'));
+
+-- =========================================================
 -- לאחר הרצת הקובץ: צור משתמש ראשון דרך Authentication > Users,
 -- ואז עדכן ידנית את תפקידו לאדמין, אשר אותו, וקבע אותו כמנהל ראשי:
 --   update profiles set role = 'admin', approved = true, is_super_admin = true where id = '<user-uuid>';

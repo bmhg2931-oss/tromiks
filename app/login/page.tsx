@@ -51,7 +51,10 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName } },
+        options: {
+          data: { full_name: fullName },
+          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/contacts`,
+        },
       });
       if (error) setError(error.message);
       else
@@ -66,7 +69,7 @@ export default function LoginPage() {
     setError(null);
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/contacts` },
+      options: { redirectTo: `${window.location.origin}/auth/confirm?next=/contacts` },
     });
   }
 
@@ -79,7 +82,7 @@ export default function LoginPage() {
     setError(null);
     setNotice(null);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/login`,
+      redirectTo: `${window.location.origin}/auth/confirm`,
     });
     setResetSending(false);
     if (error) setError(error.message);

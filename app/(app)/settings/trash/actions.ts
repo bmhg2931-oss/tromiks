@@ -10,7 +10,8 @@ export type TrashTable =
   | "donation_categories"
   | "donation_handlers"
   | "contact_cities"
-  | "contact_files";
+  | "contact_files"
+  | "campaigns";
 
 export type TrashActionResult = { ok: boolean; error?: string };
 
@@ -40,5 +41,6 @@ export async function restoreRecord(table: TrashTable, id: string): Promise<Tras
   revalidatePath("/settings/donations/categories");
   revalidatePath("/settings/donations/handlers");
   revalidatePath("/settings/contacts/cities");
+  revalidatePath("/campaigns");
   return { ok: true };
 }

@@ -28,6 +28,15 @@ function DonationsIcon() {
   );
 }
 
+function CampaignsIcon() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 2.5v15" />
+      <path d="M3 3.5h9l-1.5 3 1.5 3H3" />
+    </svg>
+  );
+}
+
 const GEAR_TEETH_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 
 function SettingsIcon() {
@@ -70,15 +79,35 @@ function ChevronIcon({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-const NAV_ITEMS = [
+const NAV_ITEMS_BEFORE = [
   { href: "/contacts", label: "אנשי קשר", Icon: ContactsIcon },
   { href: "/donations", label: "תרומות ותשלומים", Icon: DonationsIcon },
-  { href: "/settings", label: "הגדרות", Icon: SettingsIcon },
 ];
+const NAV_ITEMS_AFTER = [{ href: "/settings", label: "הגדרות", Icon: SettingsIcon }];
 
-export default function Sidebar() {
+function SubChevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="mr-auto shrink-0"
+      style={{ transform: open ? "rotate(-90deg)" : undefined, transition: "transform 0.15s" }}
+    >
+      <path d="M4 6l4 4 4-4" />
+    </svg>
+  );
+}
+
+export default function Sidebar({ campaigns = [] }: { campaigns?: { id: string; name: string }[] }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [campaignsOpen, setCampaignsOpen] = useState(pathname.startsWith("/campaigns"));
 
   return (
     <aside
@@ -99,7 +128,64 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 py-3">
-        {NAV_ITEMS.map(({ href, label, Icon }) => {
+        {NAV_ITEMS_BEFORE.map(({ href, label, Icon }) => {
+          const active = pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <Link
+              key={href}
+              href={href}
+              title={collapsed ? label : undefined}
+              className={`flex items-center gap-3 py-2.5 text-sm font-semibold transition ${
+                collapsed ? "justify-center mx-2 rounded-full" : "pr-5 pl-4 rounded-l-full"
+              } ${active ? "bg-brass text-white" : "text-[#c7cabd] hover:bg-white/10 hover:text-white"}`}
+            >
+              <Icon />
+              {!collapsed && label}
+            </Link>
+          );
+        })}
+
+        <button
+          type="button"
+          onClick={() => (collapsed ? setCollapsed(false) : setCampaignsOpen((o) => !o))}
+          title={collapsed ? "קמפיינים" : undefined}
+          className={`flex items-center gap-3 py-2.5 text-sm font-semibold transition w-full ${
+            collapsed ? "justify-center mx-2 rounded-full" : "pr-5 pl-4 rounded-l-full"
+          } ${pathname.startsWith("/campaigns") ? "bg-brass text-white" : "text-[#c7cabd] hover:bg-white/10 hover:text-white"}`}
+        >
+          <CampaignsIcon />
+          {!collapsed && (
+            <>
+              קמפיינים
+              <SubChevron open={campaignsOpen} />
+            </>
+          )}
+        </button>
+        {campaignsOpen && !collapsed && (
+          <div className="pr-4">
+            <Link
+              href="/campaigns"
+              className={`block py-2 pr-6 pl-4 text-xs rounded-l-full transition ${
+                pathname === "/campaigns" ? "bg-white/15 text-white font-semibold" : "text-[#c7cabd] hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              כל הקמפיינים
+            </Link>
+            {campaigns.map((c) => (
+              <Link
+                key={c.id}
+                href={`/campaigns/${c.id}`}
+                className={`block py-2 pr-6 pl-4 text-xs rounded-l-full transition truncate ${
+                  pathname === `/campaigns/${c.id}` ? "bg-white/15 text-white font-semibold" : "text-[#c7cabd] hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {c.name}
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {NAV_ITEMS_AFTER.map(({ href, label, Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link

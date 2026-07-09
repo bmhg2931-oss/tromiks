@@ -23,6 +23,7 @@ const TYPE_COLORS: Record<TrashTable, string> = {
   donation_handlers: "bg-[#eadcf5] text-[#6b3fa0]",
   contact_cities: "bg-[#f4e1e1] text-[#7a3232]",
   contact_files: "bg-[#dde8ec] text-[#2d5b6b]",
+  campaigns: "bg-brass/15 text-brass-deep",
 };
 
 function TrashRow({ item }: { item: TrashItem }) {
