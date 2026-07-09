@@ -1,0 +1,107 @@
+@import url("https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background:
+    radial-gradient(1200px 500px at 15% -10%, rgba(127, 154, 94, 0.08), transparent 60%),
+    #f5f4ef;
+  color: #33463a;
+}
+
+.pill {
+  display: inline-block;
+  font-size: 11px;
+  line-height: 1.3;
+  padding: 1.5px 9px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+.pill-active { background: #e7e5dc; color: #4d5c46; }
+.pill-inactive { background: #eee; color: #777; }
+.pill-paid { background: #e7e5dc; color: #4d5c46; }
+.pill-pending { background: #f3e9d2; color: #8a6415; }
+.pill-failed { background: #f4e1e1; color: #7a3232; }
+.pill-cancelled { background: #eee; color: #777; }
+.pill-refunded { background: #e3e6f2; color: #3a4a8f; }
+
+.in {
+  width: 100%;
+  border: 1px solid #ddd9d0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.in:hover:not(:focus) {
+  border-color: #c7c2b6;
+}
+.in:focus {
+  outline: none;
+  border-color: #7f9a5e;
+  box-shadow: 0 0 0 3px rgba(127, 154, 94, 0.16);
+}
+
+.search-glow {
+  background: rgba(255, 255, 255, 0.5);
+  transition: background-color 0.15s ease;
+}
+.search-glow:focus {
+  outline: none;
+  background: #fff;
+}
+
+/* מצב מסך כהה - עיצוב בסיסי לרקע הכללי של האתר ולשדות המשותפים.
+   כרגע מכסה את מעטפת האתר (רקע, טקסט, שדות) ולא כל רכיב ורכיב בנפרד. */
+.dark body {
+  background: #1b1f1a;
+  color: #dfe3d6;
+}
+.dark .bg-white {
+  background-color: #262b23 !important;
+  color: #dfe3d6;
+}
+.dark .border-line,
+.dark .border-line\/60 {
+  border-color: #3a4136 !important;
+}
+.dark .text-ink {
+  color: #dfe3d6 !important;
+}
+.dark .text-ink-soft {
+  color: #9ba497 !important;
+}
+.dark .in {
+  background: #262b23;
+  border-color: #3a4136;
+  color: #dfe3d6;
+}
+.dark .hover\:bg-parchment:hover {
+  background-color: #2f362b !important;
+}
+
+@keyframes bill-float {
+  0% {
+    opacity: 0;
+    transform: perspective(500px) translate(-50%, -50%) scale(0.3) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+  }
+  10% {
+    opacity: 1;
+    transform: perspective(500px) translate(-50%, -35%) scale(var(--bill-scale, 1)) rotateX(calc(var(--rx, 200deg) * 0.08))
+      rotateY(calc(var(--ry, 300deg) * 0.08)) rotateZ(calc(var(--rot, 40deg) * 0.15));
+  }
+  100% {
+    opacity: 0;
+    transform: perspective(500px) translate(calc(-50% + var(--dx, 30px)), var(--dy, 120px)) scale(calc(var(--bill-scale, 1) * 0.9))
+      rotateX(var(--rx, 200deg)) rotateY(var(--ry, 300deg)) rotateZ(var(--rot, 40deg));
+  }
+}
+.animate-bill-float {
+  animation-name: bill-float;
+  animation-timing-function: cubic-bezier(0.3, 0.2, 0.5, 1);
+  animation-fill-mode: forwards;
+  transform-style: preserve-3d;
+}
