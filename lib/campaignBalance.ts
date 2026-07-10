@@ -76,6 +76,20 @@ export function rollupCampaignTotals(campaigns: Campaign[], direct: Map<string, 
   return rolled;
 }
 
+// סך כל התרומות (תשלומים בפועל, לא התחייבויות) בש"ח לפי שער היסטורי, ששויכו לאחת
+// מהקמפיינים ברשימה - משמש להראות לממפה בתת-קמפיין כמה איש הקשר כבר תרם למשפחת
+// הקמפיין הזו (קמפיין-האב + כל תתי-הקמפיינים שלו) לפני שהוא ממופה לתת-קמפיין הנוכחי
+export async function getFamilyGivingByContact(supabase: SupabaseClient, campaignIds: string[]): Promise<Map<string, number>> {
+  if (campaignIds.length === 0) return new Map();
+  const { data: donations } = await supabase
+    .from("donations")
+    .select("contact_id, amount, currency, donation_date")
+    .in("campaign_id", campaignIds);
+  return sumToILSByCampaign(
+    (donations ?? []).map((d) => ({ campaign_id: d.contact_id as string, amount: Number(d.amount), currency: d.currency, date: d.donation_date }))
+  );
+}
+
 // ממיר סכום בש"ח למטבע היעד לפי השער היציג הנוכחי (לצורך תצוגת התקדמות מול יעד
 // קמפיין) - שער אחד מכל מטבע נשלף פעם אחת ומשמש לכל הקמפיינים המשתמשים בו
 export async function convertILSAmounts(

@@ -26,6 +26,7 @@ export default function PledgeForm({
   categories,
   handlers,
   defaultCurrency,
+  defaultCategory,
 }: {
   action: (prevState: PledgeFormResult | null, formData: FormData) => Promise<PledgeFormResult>;
   initial?: Partial<Pledge>;
@@ -37,9 +38,10 @@ export default function PledgeForm({
   categories: NamedItem[];
   handlers: NamedItem[];
   defaultCurrency?: string;
+  defaultCategory?: string;
 }) {
   const [state, formAction] = useFormState(action, null);
-  const [category, setCategory] = useState(initial?.category ?? "");
+  const [category, setCategory] = useState(initial?.category ?? defaultCategory ?? "");
   const [pledgeDate, setPledgeDate] = useState(() => initial?.pledge_date || toLocalISODate(new Date()));
   const [pledgeType, setPledgeType] = useState(initial?.pledge_type || PLEDGE_TYPES[0]);
   const [currency, setCurrency] = useState(initial?.currency || defaultCurrency || CURRENCIES[0]);

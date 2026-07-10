@@ -25,6 +25,33 @@ export async function setInvitationStatus(campaignId: string, contactId: string,
   return { ok: true };
 }
 
-export async function markInvited(campaignId: string, contactId: string): Promise<InvitationActionResult> {
-  return setInvitationStatus(campaignId, contactId, "הוזמן");
+const CHANNEL_LABELS: Record<string, string> = {
+  whatsapp: "וואטסאפ",
+  email: 'דוא"ל',
+};
+
+// מסמן שההזמנה נשלחה, וגם מתעד זאת כשורת "שיחה" בהיסטוריית הלקוח (כדי שהשליחה
+// תופיע יחד עם שאר ההיסטוריה של איש הקשר בטאב ההתרמה/מיפוי) - עבור כל ערוצי השליחה
+export async function recordInvitationSent(campaignId: string, contactId: string, channel: "whatsapp" | "email"): Promise<InvitationActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const [{ error: invError }, { error: logError }] = await Promise.all([
+    supabase.from("campaign_contact_invitations").upsert(
+      { campaign_id: campaignId, contact_id: contactId, status: "הוזמן", invited_at: new Date().toISOString(), invited_by: user?.id ?? null },
+      { onConflict: "campaign_id,contact_id" }
+    ),
+    supabase.from("campaign_call_logs").insert({
+      campaign_id: campaignId,
+      contact_id: contactId,
+      called_by: user?.id ?? null,
+      outcome: `נשלחה הזמנה ב${CHANNEL_LABELS[channel] ?? channel}`,
+    }),
+  ]);
+  if (invError) return { ok: false, error: invError.message };
+  if (logError) return { ok: false, error: logError.message };
+  revalidatePath(`/campaigns/${campaignId}`);
+  return { ok: true };
 }

@@ -147,12 +147,71 @@ export function DownloadIcon() {
   );
 }
 
+export function EmailIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1.5" y="3.5" width="13" height="9" rx="1.3" />
+      <path d="M2 4.3l6 4.5 6-4.5" />
+    </svg>
+  );
+}
+
+export function FaxIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 6.5V2h6l2 2v2.5" />
+      <rect x="1.5" y="6.5" width="13" height="5.5" rx="1" />
+      <path d="M4 12v2.3h8V12" />
+      <circle cx="11.5" cy="8.7" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function SwapIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.5 5.5h9l-2.2-2.2M13.5 10.5h-9l2.2 2.2" />
+    </svg>
+  );
+}
+
+export function CardIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1.5" y="3" width="13" height="10" rx="1.3" />
+      <circle cx="5.2" cy="7" r="1.3" />
+      <path d="M2.8 11c.3-1.3 1.3-2 2.4-2s2.1.7 2.4 2" />
+      <path d="M9.5 6.5h3.5M9.5 9h3.5" />
+    </svg>
+  );
+}
+
 export function ExitIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" />
       <path d="M10.5 11.5L14 8l-3.5-3.5" />
       <path d="M14 8H6" />
+    </svg>
+  );
+}
+
+export function ChatIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v6A1.5 1.5 0 0 1 12.5 11H6l-3 3v-3H3.5A1.5 1.5 0 0 1 2 9.5v-6Z" />
+      <circle cx="5.5" cy="6.5" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="8" cy="6.5" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="10.5" cy="6.5" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function SendIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 8l11.5-5.5L9 14l-1.8-5.2L2 8Z" />
+      <path d="M7.2 8.8L13.5 2.5" />
     </svg>
   );
 }

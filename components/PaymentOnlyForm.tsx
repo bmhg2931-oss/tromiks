@@ -52,6 +52,7 @@ export default function PaymentOnlyForm({
   categories,
   defaultHub,
   defaultCurrency,
+  defaultCategory,
   presetContact,
 }: {
   onDirty: () => void;
@@ -60,6 +61,7 @@ export default function PaymentOnlyForm({
   categories: NamedItem[];
   defaultHub: string;
   defaultCurrency: string;
+  defaultCategory?: string;
   presetContact?: Contact;
 }) {
   const [state, formAction] = useFormState(createDonation, null);
@@ -67,7 +69,7 @@ export default function PaymentOnlyForm({
   const nedarimRef = useRef<NedarimHandle>(null);
   const [hub, setHub] = useState(defaultHub || PAYMENT_HUBS[0]);
   const [contact, setContact] = useState<ContactWithBalance | null>(null);
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(defaultCategory ?? "");
   const [currency, setCurrency] = useState(defaultCurrency);
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");

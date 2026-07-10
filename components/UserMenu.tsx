@@ -2,13 +2,26 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
-export default function UserMenu({ name, roleLabel }: { name: string; roleLabel: string }) {
+export default function UserMenu({
+  name,
+  roleLabel,
+  avatarUrl,
+}: {
+  name: string;
+  roleLabel: string;
+  avatarUrl?: string | null;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
     <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
-      <button className="h-8 text-[11px] px-3 rounded-full border border-white/30 bg-brass/25 flex items-center gap-1.5 whitespace-nowrap">
+      <button className="h-8 text-[11px] pr-1.5 pl-3 rounded-full border border-white/30 bg-brass/25 flex items-center gap-1.5 whitespace-nowrap">
+        {avatarUrl && (
+          <Image src={avatarUrl} alt={name} width={22} height={22} className="w-[22px] h-[22px] rounded-full object-cover shrink-0" unoptimized />
+        )}
+        <span className="opacity-60">|</span>
         <span className="font-semibold">{name}</span>
         <span className="opacity-60">|</span>
         <span>{roleLabel}</span>

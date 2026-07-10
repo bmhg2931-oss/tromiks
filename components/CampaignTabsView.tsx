@@ -6,11 +6,15 @@ import { CAMPAIGN_TAB_OPTIONS, type Campaign } from "@/lib/types";
 import TabBar from "./TabBar";
 import CampaignProgressBar from "./CampaignProgressBar";
 import NewCampaignModal from "./NewCampaignModal";
+import CampaignSettingsModal from "./CampaignSettingsModal";
 import CampaignRecordsTable, { type CampaignRecordRow } from "./CampaignRecordsTable";
-import CampaignDimensionsManager, { type DimensionWithLevels } from "./CampaignDimensionsManager";
+import { type DimensionWithLevels } from "./CampaignDimensionsManager";
 import CampaignMappingTable, { type MappingContactRow } from "./CampaignMappingTable";
 import CampaignInvitationTable, { type InvitationContactRow } from "./CampaignInvitationTable";
+import CampaignFundraisingWorkspace, { type FundraisingContactRow } from "./CampaignFundraisingWorkspace";
+import type { PickerContact } from "./CampaignAudiencePickerModal";
 
+type NamedItem = { id: string; name: string };
 type ChildCampaign = { id: string; name: string; goal_amount: number | null; goal_currency: string; raised: number };
 type MappingActionFn = (arg1: string, arg2?: string) => Promise<{ ok: boolean; error?: string }>;
 
@@ -24,6 +28,14 @@ export default function CampaignTabsView({
   dimensions,
   mappingContacts,
   invitationContacts,
+  fundraisingContacts,
+  categories,
+  handlers,
+  defaultHub,
+  defaultCurrency,
+  campaignCategoryName,
+  otherCampaignsForImport,
+  allContacts,
   boundCreateDimension,
   boundDeleteDimension,
   boundAddLevel,
@@ -38,6 +50,14 @@ export default function CampaignTabsView({
   dimensions: DimensionWithLevels[];
   mappingContacts: MappingContactRow[];
   invitationContacts: InvitationContactRow[];
+  fundraisingContacts: FundraisingContactRow[];
+  categories: NamedItem[];
+  handlers: NamedItem[];
+  defaultHub: string;
+  defaultCurrency: string;
+  campaignCategoryName?: string | null;
+  otherCampaignsForImport: NamedItem[];
+  allContacts: PickerContact[];
   boundCreateDimension: (name: string) => Promise<{ ok: boolean; error?: string }>;
   boundDeleteDimension: MappingActionFn;
   boundAddLevel: (dimensionId: string, label: string) => Promise<{ ok: boolean; error?: string }>;
@@ -53,7 +73,26 @@ export default function CampaignTabsView({
           ← {parent.name}
         </Link>
       )}
-      <h1 className="font-serif text-3xl font-bold mb-1">{campaign.name}</h1>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <h1 className="font-serif text-3xl font-bold">{campaign.name}</h1>
+        {editable && (
+          <CampaignSettingsModal
+            campaignId={campaign.id}
+            initialAudienceMode={campaign.audience_mode}
+            initialDepartments={campaign.included_departments ?? []}
+            initialContactIds={campaign.included_contact_ids ?? []}
+            allContacts={allContacts}
+            otherCampaigns={otherCampaignsForImport}
+            dimensions={dimensions}
+            initialEmailTemplate={campaign.email_template ?? ""}
+            initialFaxTemplate={campaign.fax_template ?? ""}
+            boundCreateDimension={boundCreateDimension}
+            boundDeleteDimension={boundDeleteDimension}
+            boundAddLevel={boundAddLevel}
+            boundDeleteLevel={boundDeleteLevel}
+          />
+        )}
+      </div>
       {campaign.description && <p className="text-sm text-ink-soft mb-4">{campaign.description}</p>}
 
       {tabs.length > 1 && <TabBar tabs={tabs.map((t) => ({ key: t, label: t }))} active={tab} onChange={setTab} />}
@@ -90,30 +129,51 @@ export default function CampaignTabsView({
             </>
           )}
 
-          <h2 className="font-serif text-lg font-bold mb-3">
-            {parent ? "תרומות ותשלומים" : "תרומות ששויכו ישירות לקמפיין (לא דרך תת-קמפיין)"}
-          </h2>
-          <CampaignRecordsTable rows={records} />
+          <h2 className="font-serif text-lg font-bold mb-3">מרכז ההתרמה</h2>
+          <CampaignFundraisingWorkspace
+            campaignId={campaign.id}
+            campaignName={campaign.name}
+            contacts={fundraisingContacts}
+            records={records}
+            categories={categories}
+            handlers={handlers}
+            defaultHub={defaultHub}
+            defaultCurrency={defaultCurrency}
+            campaignCategoryName={campaignCategoryName}
+            editable={editable}
+            emailTemplate={campaign.email_template}
+            faxTemplate={campaign.fax_template}
+          />
         </div>
       )}
 
       {tab === "מיפוי" && (
-        <div>
-          <div className="mb-6">
-            <CampaignDimensionsManager
-              dimensions={dimensions}
-              onAddDimension={boundCreateDimension}
-              onDeleteDimension={boundDeleteDimension}
-              onAddLevel={boundAddLevel}
-              onDeleteLevel={boundDeleteLevel}
-            />
-          </div>
-          <CampaignMappingTable campaignId={campaign.id} contacts={mappingContacts} dimensions={dimensions} />
-        </div>
+        <CampaignMappingTable
+          campaignId={campaign.id}
+          campaignName={campaign.name}
+          contacts={mappingContacts}
+          dimensions={dimensions}
+          records={records}
+          categories={categories}
+          handlers={handlers}
+          defaultHub={defaultHub}
+          defaultCurrency={defaultCurrency}
+          campaignCategoryName={campaignCategoryName}
+          editable={editable}
+          emailTemplate={campaign.email_template}
+          faxTemplate={campaign.fax_template}
+        />
       )}
 
       {tab === "הזמנה" && (
         <CampaignInvitationTable campaignId={campaign.id} campaignName={campaign.name} contacts={invitationContacts} />
+      )}
+
+      {tab === "התחייבויות ותשלומים" && (
+        <div>
+          <h2 className="font-serif text-lg font-bold mb-3">התחייבויות ותשלומים</h2>
+          <CampaignRecordsTable rows={records} />
+        </div>
       )}
     </div>
   );

@@ -5,6 +5,7 @@ import SignOutButton from "@/components/SignOutButton";
 import UserMenu from "@/components/UserMenu";
 import Sidebar from "@/components/Sidebar";
 import ThemeToggle from "@/components/ThemeToggle";
+import AIChatWidget from "@/components/AIChatWidget";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -23,11 +24,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (profile && !profile.approved) redirect("/pending-approval");
 
   const role = (profile?.role ?? "secretary") as UserRole;
+  const avatarUrl = (user.user_metadata?.avatar_url as string | undefined) || (user.user_metadata?.picture as string | undefined) || null;
 
   const { data: campaigns } = await supabase
     .from("campaigns")
-    .select("id, name")
-    .is("parent_campaign_id", null)
+    .select("id, name, parent_campaign_id")
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
@@ -35,14 +36,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen flex">
       <Sidebar campaigns={campaigns ?? []} />
       <div className="flex-1 min-w-0 flex flex-col">
-        <div className="mr-auto bg-gradient-to-b from-ink to-[#243024] text-[#eef2e4] pr-24 pl-5 py-3.5 flex items-center gap-3 shadow sticky top-0 z-30 rounded-br-3xl">
+        <div className="mr-auto bg-gradient-to-b from-ink to-[#243024] text-[#eef2e4] pr-24 pl-5 py-5 flex items-center gap-3 shadow sticky top-0 z-30 rounded-br-[7rem]">
           <ThemeToggle />
-          <UserMenu name={profile?.full_name || user.email || ""} roleLabel={ROLE_LABELS[role]} />
+          <UserMenu name={profile?.full_name || user.email || ""} roleLabel={ROLE_LABELS[role]} avatarUrl={avatarUrl} />
           <SignOutButton />
         </div>
 
         <main className="max-w-[1600px] mx-auto px-8 pt-0 pb-16 w-full">{children}</main>
       </div>
+      <AIChatWidget />
     </div>
   );
 }

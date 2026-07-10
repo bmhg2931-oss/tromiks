@@ -1,5 +1,6 @@
 export type CampaignRecordRow = {
   id: string;
+  contactId: string;
   contactName: string;
   contactPhone: string;
   type: "pledge" | "donation";

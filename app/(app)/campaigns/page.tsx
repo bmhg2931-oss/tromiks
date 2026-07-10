@@ -32,11 +32,29 @@ export default async function CampaignsPage() {
   const currencyByCampaign = new Map(campaigns.map((c) => [c.id, c.goal_currency]));
   const converted = await convertILSAmounts(rolled, currencyByCampaign);
 
+  const activeCount = topLevel.filter((c) => c.status === "פעיל").length;
+  const totalRaisedILS = topLevel.reduce((sum, c) => sum + (rolled.get(c.id)?.paidILS ?? 0), 0);
+
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <h1 className="font-serif text-3xl font-bold">קמפיינים</h1>
         {editable && <NewCampaignModal />}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white border border-line rounded-xl shadow p-4">
+          <p className="text-xs text-ink-soft mb-1">סה&quot;כ קמפיינים</p>
+          <p className="font-serif text-2xl font-bold">{topLevel.length}</p>
+        </div>
+        <div className="bg-white border border-line rounded-xl shadow p-4">
+          <p className="text-xs text-ink-soft mb-1">קמפיינים פעילים</p>
+          <p className="font-serif text-2xl font-bold">{activeCount}</p>
+        </div>
+        <div className="bg-white border border-line rounded-xl shadow p-4">
+          <p className="text-xs text-ink-soft mb-1">סה&quot;כ גויס (כל הקמפיינים)</p>
+          <p className="font-serif text-2xl font-bold">₪{Math.round(totalRaisedILS).toLocaleString("he-IL")}</p>
+        </div>
       </div>
 
       {topLevel.length === 0 ? (

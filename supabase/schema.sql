@@ -1165,6 +1165,29 @@ create policy "campaign_invitations_delete" on campaign_contact_invitations for 
   to authenticated using (my_role() in ('admin','treasurer'));
 
 -- =========================================================
+-- 37. הגדרות קמפיין: הגבלת אנשי הקשר הכלולים בקמפיין לפי מחלקה (ריק/null =
+--    כל המחלקות כלולות)
+--    *** קטע חדש בלבד ***
+-- =========================================================
+alter table campaigns add column if not exists included_departments text[];
+
+-- =========================================================
+-- 38. קהל יעד קמפיין: מצב בחירה (לפי מחלקה / בחירה ידנית של אנשי קשר ספציפיים)
+--    *** קטע חדש בלבד ***
+-- =========================================================
+alter table campaigns add column if not exists audience_mode text not null default 'department'
+  check (audience_mode in ('department','manual'));
+alter table campaigns add column if not exists included_contact_ids uuid[];
+
+-- =========================================================
+-- 39. תבניות הודעה (מייל/פקס) לקמפיין - טקסט חופשי עם {שם}/{קמפיין} כתחליפים,
+--    משמש בעת שליחת הזמנה/תיעוד מרכז ההתרמה
+--    *** קטע חדש בלבד ***
+-- =========================================================
+alter table campaigns add column if not exists email_template text;
+alter table campaigns add column if not exists fax_template text;
+
+-- =========================================================
 -- לאחר הרצת הקובץ: צור משתמש ראשון דרך Authentication > Users,
 -- ואז עדכן ידנית את תפקידו לאדמין, אשר אותו, וקבע אותו כמנהל ראשי:
 --   update profiles set role = 'admin', approved = true, is_super_admin = true where id = '<user-uuid>';

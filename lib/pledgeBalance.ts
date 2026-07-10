@@ -51,6 +51,15 @@ export async function getContactBalances(supabase: SupabaseClient): Promise<Map<
   return balances;
 }
 
+// סך כל ההתחייבויות (שלא בוטלו) של איש קשר, בש"ח לפי שער היסטורי - ללא קיזוז תשלומים
+// (בשונה מ-getContactBalances) - משמש כנתון עזר כללי בעת מיפוי קמפיין-אב
+export async function getContactTotalPledges(supabase: SupabaseClient): Promise<Map<string, number>> {
+  const { data: pledges } = await supabase.from("pledges").select("contact_id, amount, currency, pledge_date").neq("status", "בוטל");
+  return sumToILSByDate(
+    (pledges ?? []).map((p) => ({ contact_id: p.contact_id, amount: Number(p.amount), currency: p.currency, date: p.pledge_date }))
+  );
+}
+
 // ממיר מפת יתרות בש"ח (התוצאה של getContactBalances) למטבע התצוגה הנבחר, לפי השער
 // היציג הנוכחי (לא היסטורי) - זהו שלב תצוגה בלבד, שמופרד מחישוב הבסיס בש"ח כדי
 // שסינון/השוואת סף יתרה (במסך אנשי הקשר) ימשיך להתבצע תמיד בש"ח בעקביות

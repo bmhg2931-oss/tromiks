@@ -69,6 +69,7 @@ export default function PledgeAndPaymentForm({
   handlers,
   defaultHub,
   defaultCurrency,
+  defaultCategory,
   presetContact,
 }: {
   onDirty: () => void;
@@ -78,6 +79,7 @@ export default function PledgeAndPaymentForm({
   handlers: NamedItem[];
   defaultHub: string;
   defaultCurrency: string;
+  defaultCategory?: string;
   presetContact?: Contact;
 }) {
   const [state, formAction] = useFormState(createPledgeWithPayment, null);
@@ -86,7 +88,7 @@ export default function PledgeAndPaymentForm({
 
   const [hub, setHub] = useState(defaultHub || PAYMENT_HUBS[0]);
   const [contact, setContact] = useState<ContactWithBalance | null>(null);
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(defaultCategory ?? "");
   const [pledgeDate, setPledgeDate] = useState(() => toLocalISODate(new Date()));
   const [pledgeType, setPledgeType] = useState(PLEDGE_TYPES[0]);
   const [currency, setCurrency] = useState(defaultCurrency || "₪");

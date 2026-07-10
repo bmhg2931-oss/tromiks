@@ -44,6 +44,7 @@ export default function AddDonationModal({
   handlers,
   defaultHub,
   defaultCurrency,
+  defaultCategory,
   presetContact,
   open: controlledOpen,
   onOpenChange,
@@ -52,6 +53,7 @@ export default function AddDonationModal({
   handlers: NamedItem[];
   defaultHub: string;
   defaultCurrency: string;
+  defaultCategory?: string;
   presetContact?: Contact;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -153,6 +155,7 @@ export default function AddDonationModal({
                 categories={categories}
                 handlers={handlers}
                 defaultCurrency={defaultCurrency}
+                defaultCategory={defaultCategory}
                 presetContact={presetContact}
               />
             )}
@@ -166,6 +169,7 @@ export default function AddDonationModal({
                 handlers={handlers}
                 defaultHub={defaultHub}
                 defaultCurrency={defaultCurrency}
+                defaultCategory={defaultCategory}
                 presetContact={presetContact}
               />
             )}
@@ -178,6 +182,7 @@ export default function AddDonationModal({
                 categories={categories}
                 defaultHub={defaultHub}
                 defaultCurrency={defaultCurrency}
+                defaultCategory={defaultCategory}
                 presetContact={presetContact}
               />
             )}

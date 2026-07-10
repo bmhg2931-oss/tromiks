@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { setInvitationStatus, markInvited } from "@/app/(app)/campaigns/invitation-actions";
+import { setInvitationStatus, recordInvitationSent } from "@/app/(app)/campaigns/invitation-actions";
 import { CAMPAIGN_INVITATION_STATUSES } from "@/lib/types";
 import { stripLeadingZeros } from "@/lib/validation";
 
@@ -10,12 +10,17 @@ export type InvitationContactRow = {
   first_name: string;
   last_name: string;
   phone: string;
+  email: string | null;
   status: string;
 };
 
 function whatsappLink(phone: string, message: string) {
   const digits = stripLeadingZeros(phone.replace(/[^\d]/g, ""));
   return `https://wa.me/972${digits}?text=${encodeURIComponent(message)}`;
+}
+
+function mailtoLink(email: string, subject: string, message: string) {
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
 }
 
 export default function CampaignInvitationTable({
@@ -51,12 +56,21 @@ export default function CampaignInvitationTable({
     });
   }
 
-  function handleSendInvite(contactId: string, phone: string, name: string) {
+  function handleSendWhatsapp(contactId: string, phone: string, name: string) {
     const message = `שלום ${name}, מוזמנים להצטרף אלינו לקמפיין "${campaignName}"!`;
     window.open(whatsappLink(phone, message), "_blank");
     updateLocal(contactId, "הוזמן");
     startTransition(async () => {
-      await markInvited(campaignId, contactId);
+      await recordInvitationSent(campaignId, contactId, "whatsapp");
+    });
+  }
+
+  function handleSendEmail(contactId: string, email: string, name: string) {
+    const message = `שלום ${name},\n\nמוזמנים להצטרף אלינו לקמפיין "${campaignName}"!`;
+    window.open(mailtoLink(email, `הזמנה לקמפיין ${campaignName}`, message), "_blank");
+    updateLocal(contactId, "הוזמן");
+    startTransition(async () => {
+      await recordInvitationSent(campaignId, contactId, "email");
     });
   }
 
@@ -99,14 +113,24 @@ export default function CampaignInvitationTable({
                   </select>
                 </td>
                 <td className="p-2.5 whitespace-nowrap">
-                  <button
-                    type="button"
-                    onClick={() => handleSendInvite(c.id, c.phone, `${c.first_name} ${c.last_name}`.trim())}
-                    disabled={!c.phone}
-                    className="text-xs px-2.5 py-1 rounded-lg bg-brass hover:bg-brass-deep text-white transition disabled:opacity-40"
-                  >
-                    שליחת הזמנה בוואטסאפ
-                  </button>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleSendWhatsapp(c.id, c.phone, `${c.first_name} ${c.last_name}`.trim())}
+                      disabled={!c.phone}
+                      className="text-xs px-2.5 py-1 rounded-lg bg-brass hover:bg-brass-deep text-white transition disabled:opacity-40"
+                    >
+                      וואטסאפ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => c.email && handleSendEmail(c.id, c.email, `${c.first_name} ${c.last_name}`.trim())}
+                      disabled={!c.email}
+                      className="text-xs px-2.5 py-1 rounded-lg bg-brass hover:bg-brass-deep text-white transition disabled:opacity-40"
+                    >
+                      דוא&quot;ל
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

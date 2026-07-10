@@ -9,13 +9,17 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "@hebcal/core": "^6.6.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.45.4",
+    "@twilio/voice-sdk": "^2.18.3",
     "motion": "^12.42.2",
     "next": "^14.2.35",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "resend": "^6.17.2",
+    "twilio": "^6.0.2",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

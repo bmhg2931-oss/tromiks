@@ -147,8 +147,8 @@ export type Pledge = {
 export type CampaignStatus = "פעיל" | "הושלם" | "בארכיון";
 export const CAMPAIGN_STATUSES: CampaignStatus[] = ["פעיל", "הושלם", "בארכיון"];
 
-export type CampaignTabKey = "מיפוי" | "הזמנה" | "התרמה";
-export const CAMPAIGN_TAB_OPTIONS: CampaignTabKey[] = ["מיפוי", "הזמנה", "התרמה"];
+export type CampaignTabKey = "מיפוי" | "הזמנה" | "התרמה" | "התחייבויות ותשלומים";
+export const CAMPAIGN_TAB_OPTIONS: CampaignTabKey[] = ["מיפוי", "הזמנה", "התרמה", "התחייבויות ותשלומים"];
 
 export type Campaign = {
   id: string;
@@ -161,6 +161,11 @@ export type Campaign = {
   end_date: string | null;
   status: CampaignStatus;
   enabled_tabs: string[];
+  included_departments: string[] | null;
+  audience_mode: "department" | "manual";
+  included_contact_ids: string[] | null;
+  email_template: string | null;
+  fax_template: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -104,10 +104,21 @@ function SubChevron({ open }: { open: boolean }) {
   );
 }
 
-export default function Sidebar({ campaigns = [] }: { campaigns?: { id: string; name: string }[] }) {
+type CampaignNavItem = { id: string; name: string; parent_campaign_id: string | null };
+
+export default function Sidebar({ campaigns = [] }: { campaigns?: CampaignNavItem[] }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [campaignsOpen, setCampaignsOpen] = useState(pathname.startsWith("/campaigns"));
+
+  const topLevelCampaigns = campaigns.filter((c) => !c.parent_campaign_id);
+  const childrenByParent = new Map<string, CampaignNavItem[]>();
+  for (const c of campaigns) {
+    if (!c.parent_campaign_id) continue;
+    const list = childrenByParent.get(c.parent_campaign_id) ?? [];
+    list.push(c);
+    childrenByParent.set(c.parent_campaign_id, list);
+  }
 
   return (
     <aside
@@ -145,42 +156,57 @@ export default function Sidebar({ campaigns = [] }: { campaigns?: { id: string; 
           );
         })}
 
-        <button
-          type="button"
-          onClick={() => (collapsed ? setCollapsed(false) : setCampaignsOpen((o) => !o))}
-          title={collapsed ? "קמפיינים" : undefined}
-          className={`flex items-center gap-3 py-2.5 text-sm font-semibold transition w-full ${
-            collapsed ? "justify-center mx-2 rounded-full" : "pr-5 pl-4 rounded-l-full"
-          } ${pathname.startsWith("/campaigns") ? "bg-brass text-white" : "text-[#c7cabd] hover:bg-white/10 hover:text-white"}`}
-        >
-          <CampaignsIcon />
+        <div className={`flex items-center ${collapsed ? "justify-center mx-2 rounded-full" : "pr-5 pl-2 rounded-l-full"} ${
+          pathname === "/campaigns" ? "bg-brass text-white" : "text-[#c7cabd] hover:bg-white/10 hover:text-white"
+        }`}>
+          <Link
+            href="/campaigns"
+            title={collapsed ? "קמפיינים" : undefined}
+            className="flex items-center gap-3 py-2.5 text-sm font-semibold flex-1 min-w-0"
+          >
+            <CampaignsIcon />
+            {!collapsed && "קמפיינים"}
+          </Link>
           {!collapsed && (
-            <>
-              קמפיינים
+            <button
+              type="button"
+              onClick={() => setCampaignsOpen((o) => !o)}
+              aria-label={campaignsOpen ? "כיווץ רשימת קמפיינים" : "הרחבת רשימת קמפיינים"}
+              className="shrink-0 p-1.5 rounded-md hover:bg-white/10"
+            >
               <SubChevron open={campaignsOpen} />
-            </>
+            </button>
           )}
-        </button>
+        </div>
         {campaignsOpen && !collapsed && (
           <div className="pr-4">
-            <Link
-              href="/campaigns"
-              className={`block py-2 pr-6 pl-4 text-xs rounded-l-full transition ${
-                pathname === "/campaigns" ? "bg-white/15 text-white font-semibold" : "text-[#c7cabd] hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              כל הקמפיינים
-            </Link>
-            {campaigns.map((c) => (
-              <Link
-                key={c.id}
-                href={`/campaigns/${c.id}`}
-                className={`block py-2 pr-6 pl-4 text-xs rounded-l-full transition truncate ${
-                  pathname === `/campaigns/${c.id}` ? "bg-white/15 text-white font-semibold" : "text-[#c7cabd] hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                {c.name}
-              </Link>
+            {topLevelCampaigns.map((c) => (
+              <div key={c.id}>
+                <Link
+                  href={`/campaigns/${c.id}`}
+                  className={`block py-2 pr-6 pl-4 text-xs rounded-l-full transition truncate ${
+                    pathname === `/campaigns/${c.id}` ? "bg-white/15 text-white font-semibold" : "text-[#c7cabd] hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  {c.name}
+                </Link>
+                {(childrenByParent.get(c.id) ?? []).length > 0 && (
+                  <div className="mr-6 pr-3">
+                    {(childrenByParent.get(c.id) ?? []).map((sub) => (
+                      <Link
+                        key={sub.id}
+                        href={`/campaigns/${sub.id}`}
+                        className={`flex items-center gap-1.5 py-1.5 pl-4 text-[11px] rounded-l-full transition truncate ${
+                          pathname === `/campaigns/${sub.id}` ? "bg-white/15 text-white font-semibold" : "text-[#c7cabd]/80 hover:bg-white/10 hover:text-white"
+                        }`}
+                      >
+                        <span className="w-1 h-1 rounded-full bg-current shrink-0" />
+                        {sub.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}

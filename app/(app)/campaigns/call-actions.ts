@@ -12,10 +12,12 @@ export async function addCallLog(campaignId: string, contactId: string, formData
   } = await supabase.auth.getUser();
   const outcome = String(formData.get("outcome") || "").trim() || null;
   const notes = String(formData.get("notes") || "").trim() || null;
+  const callDateRaw = String(formData.get("call_date") || "");
+  const call_date = callDateRaw ? new Date(callDateRaw).toISOString() : new Date().toISOString();
 
   const { error } = await supabase
     .from("campaign_call_logs")
-    .insert({ campaign_id: campaignId, contact_id: contactId, called_by: user?.id ?? null, outcome, notes });
+    .insert({ campaign_id: campaignId, contact_id: contactId, called_by: user?.id ?? null, outcome, notes, call_date });
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/campaigns/${campaignId}`);
   return { ok: true };
