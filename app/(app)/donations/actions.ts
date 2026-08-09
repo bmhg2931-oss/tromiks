@@ -256,6 +256,8 @@ export async function markSurplusAsBonusPledge(
   category: string,
   date: string
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!amount || amount <= 0) return { ok: false, error: "יש להזין סכום התחייבות תקין" };
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -307,6 +309,12 @@ export async function updateDonation(
   const donation_date = String(formData.get("donation_date") || "") || new Date().toISOString().slice(0, 10);
   const contact_id = String(formData.get("contact_id") || "") || undefined;
 
+  // אם התשלום כבר אושר בפועל (כרטיס אשראי שסטטוסו "שולם", למשל דרך אישור נדרים פלוס),
+  // עריכת שדות אחרים (הערות וכו') לא אמורה "לבטל" את האישור הזה - בשונה מיצירת תשלום
+  // חדש, שם "ממתין" הוא ברירת המחדל הנכונה עד שמתקבל אישור סליקה בפועל
+  const { data: existingDonation } = await supabase.from("donations").select("status, payment_method").eq("id", id).single();
+  const wasConfirmedCard = existingDonation?.payment_method === "כרטיס אשראי" && existingDonation?.status === "שולם";
+
   // pledge_id אינו נערך כאן בכוונה: השיוך (אם קיים, מזרימת התחייבות+תשלום) הוא לצורך
   // תיוג/תצוגה בלבד ולא נגזר מטופס העריכה. הסכום ממשיך להיספר במלואו לסך כל התשלומים
   // האגרגטיבי בכל מקרה.
@@ -321,7 +329,7 @@ export async function updateDonation(
       payment_method,
       payment_hub,
       recurrence: payment_method === "הוראת קבע" ? "חודשי" : "חד-פעמי",
-      status: payment_method === "כרטיס אשראי" ? "ממתין" : "שולם",
+      status: payment_method === "כרטיס אשראי" ? (wasConfirmedCard ? "שולם" : "ממתין") : "שולם",
       notes: String(formData.get("notes") || "") || null,
       follow_up: String(formData.get("follow_up") || "") || null,
       follow_up_details: String(formData.get("follow_up_details") || "") || null,

@@ -18,8 +18,14 @@ export const NEDARIM_SUPPORTED_HUB = "ישראל";
 // שבקשת webhook נכנסת מגיעה מאחת מהן לפני שסומכים עליה כאישור תשלום אמיתי
 export const NEDARIM_CALLBACK_IPS = ["18.194.219.73", "3.70.117.239", "3.74.120.185", "18.196.146.117"];
 
+// התיעוד הרשמי של נדרים פלוס (matara.pro) עבר לפורטל ניהול הדורש התחברות, ולא הצלחתי
+// לאתר בציבור את רשימת ה-Status המדויקת שהם שולחים ב-CallBack (חיפוש ופניה לפורומים
+// הרלוונטיים נחסמו). לכן, ליתר ביטחון, הבדיקה כאן היא התאמה מדויקת (עוגן גם בסוף המחרוזת)
+// ולא רק prefix - כדי ש"1" לא יתאים בטעות גם לקוד שגיאה כמו "100". אם בפועל נדרים פלוס
+// שולחים ערך מורכב (למשל "OK - אושר") שאמור להיחשב הצלחה ואינו תואם כאן, יש להרחיב את
+// הרשימה בהתאם למה שנצפה בפועל בלוגים של ה-webhook, ולא לחזור ל-prefix matching
 export function isNedarimSuccessStatus(status: string): boolean {
-  return /^(ok|true|1|אישור|בוצע|success)/i.test(status);
+  return /^(ok|true|1|אישור|בוצע|success)$/i.test(status.trim());
 }
 
 export type NedarimTransactionResult = {
