@@ -489,6 +489,7 @@ export type DonationImportRow = {
   check_date: string | null;
   nedarim_transaction_id: string | null;
   stripe_payment_intent_id: string | null;
+  stripe_customer_id: string | null;
   notes: string | null;
   match_status: DonationImportMatchStatus;
   matched_contact_id: string | null;

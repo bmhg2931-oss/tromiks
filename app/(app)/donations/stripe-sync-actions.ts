@@ -4,7 +4,7 @@ import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getStripeClient, stripeCurrencyToSymbol, stripeMinorUnitsToDecimal } from "@/lib/stripe";
+import { getStripeClient, stripeCurrencyToSymbol, stripeMinorUnitsToDecimal, stripeCustomerIdOf } from "@/lib/stripe";
 import { matchContactsForRows, type ParsedDonationRow } from "@/app/(app)/donations/mapping-actions";
 
 // Stripe מגביל limit ל-100 לכל קריאת list (לא 2000 כמו נדרים פלוס) - אבל בלי
@@ -41,6 +41,19 @@ export async function getStripeSyncStatus(): Promise<{ lastId: string | null; up
 function billingDetailsOf(pi: Stripe.PaymentIntent): { name: string | null; phone: string | null } {
   const charge = typeof pi.latest_charge === "object" ? pi.latest_charge : null;
   return { name: charge?.billing_details?.name ?? null, phone: charge?.billing_details?.phone ?? null };
+}
+
+// בדיקה מרוכזת (query אחד) מול donation_stripe_customer_mapping_rules - מפתח
+// שיוך קבוע יציב לפי מזהה לקוח Stripe, בשונה מ-donation_phone_mapping_rules
+// שדורש טלפון. שימושי במיוחד לעסקאות Stripe בלי billing_details בכלל, ששם
+// phone_key תמיד null ולא היה אפשר לשמור עבורן שום כלל שיוך קבוע עד כה
+export async function matchStripeCustomerRules(supabase: SupabaseClient, stripeCustomerIds: string[]): Promise<Map<string, string>> {
+  if (stripeCustomerIds.length === 0) return new Map();
+  const { data } = await supabase
+    .from("donation_stripe_customer_mapping_rules")
+    .select("stripe_customer_id, contact_id")
+    .in("stripe_customer_id", stripeCustomerIds);
+  return new Map((data ?? []).map((r) => [r.stripe_customer_id as string, r.contact_id as string]));
 }
 
 // שולף עמוד אחד של payment intents שהצליחו מ-Stripe, עושה דה-דופ מול donations
@@ -92,7 +105,7 @@ export async function fetchAndStageStripeHistoryPage(options: {
     ids.length > 0 ? await supabase.from("donations").select("stripe_payment_intent_id").in("stripe_payment_intent_id", ids) : { data: [] };
   const existingIds = new Set((existing ?? []).map((d) => d.stripe_payment_intent_id as string));
 
-  const rowsToStage: (ParsedDonationRow & { stripe_payment_intent_id: string })[] = [];
+  const rowsToStage: (ParsedDonationRow & { stripe_payment_intent_id: string; stripe_customer_id: string | null })[] = [];
   let skippedDuplicates = 0;
 
   for (const pi of succeeded) {
@@ -122,6 +135,7 @@ export async function fetchAndStageStripeHistoryPage(options: {
       check_date: null,
       notes: null,
       stripe_payment_intent_id: pi.id,
+      stripe_customer_id: stripeCustomerIdOf(pi),
     });
   }
 
@@ -144,9 +158,17 @@ export async function fetchAndStageStripeHistoryPage(options: {
       };
     }
 
-    const matches = await matchContactsForRows(rowsToStage);
+    const phoneMatches = await matchContactsForRows(rowsToStage);
+    const customerIds = Array.from(new Set(rowsToStage.map((r) => r.stripe_customer_id).filter((id): id is string => Boolean(id))));
+    const customerRules = await matchStripeCustomerRules(supabase, customerIds);
+
     const payload = rowsToStage.map((row, i) => {
-      const match = matches[i];
+      // כלל שיוך קבוע לפי מזהה לקוח Stripe (אם קיים) גובר על ההתאמה לפי טלפון -
+      // הוא ודאי (הוגדר במפורש ע"י מישהו), בעוד ההתאמה לפי טלפון היא ניחוש
+      const customerRuleContactId = row.stripe_customer_id ? customerRules.get(row.stripe_customer_id) : undefined;
+      const match = customerRuleContactId
+        ? { phone_key: phoneMatches[i].phone_key, match_status: "matched" as const, matched_contact_id: customerRuleContactId, match_source: "permanent_rule" as const }
+        : phoneMatches[i];
       return {
         batch_id: batch.id,
         raw: row.raw,
@@ -163,6 +185,7 @@ export async function fetchAndStageStripeHistoryPage(options: {
         match_source: match.match_source,
         possible_duplicate: false,
         stripe_payment_intent_id: row.stripe_payment_intent_id,
+        stripe_customer_id: row.stripe_customer_id,
         created_by: null,
       };
     });

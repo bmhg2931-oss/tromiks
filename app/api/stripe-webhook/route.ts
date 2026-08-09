@@ -4,7 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createDonationWithClient } from "@/app/(app)/donations/actions";
 import { createPledgeWithPaymentUsingClient } from "@/app/(app)/donations/pledge-actions";
 import { matchContactsForRows, type ParsedDonationRow } from "@/app/(app)/donations/mapping-actions";
-import { getStripeClient, stripeCurrencyToSymbol, stripeMinorUnitsToDecimal } from "@/lib/stripe";
+import { getStripeClient, stripeCurrencyToSymbol, stripeMinorUnitsToDecimal, stripeCustomerIdOf } from "@/lib/stripe";
+import { matchStripeCustomerRules } from "@/app/(app)/donations/stripe-sync-actions";
 import type { StripeCheckoutKind } from "@/app/(app)/donations/stripe-actions";
 
 // חובה: זהו webhook חיצוני שנקרא בזמן ריצה בלבד ע"י שרתי Stripe - אסור ש-Next.js
@@ -106,7 +107,16 @@ async function handlePaymentIntentSucceeded(supabase: ReturnType<typeof createAd
     .single();
   if (batchError || !batch) return;
 
-  const [match] = await matchContactsForRows([row]);
+  const [phoneMatch] = await matchContactsForRows([row]);
+  // כלל שיוך קבוע לפי מזהה לקוח Stripe (אם קיים) גובר על ההתאמה לפי טלפון -
+  // ר' אותה הערה ב-stripe-sync-actions.ts
+  const stripeCustomerId = stripeCustomerIdOf(paymentIntent);
+  const customerRules = await matchStripeCustomerRules(supabase, stripeCustomerId ? [stripeCustomerId] : []);
+  const customerRuleContactId = stripeCustomerId ? customerRules.get(stripeCustomerId) : undefined;
+  const match = customerRuleContactId
+    ? { phone_key: phoneMatch.phone_key, match_status: "matched" as const, matched_contact_id: customerRuleContactId, match_source: "permanent_rule" as const }
+    : phoneMatch;
+
   await supabase.from("donation_import_rows").insert({
     batch_id: batch.id,
     raw: row.raw,
@@ -123,6 +133,7 @@ async function handlePaymentIntentSucceeded(supabase: ReturnType<typeof createAd
     match_source: match.match_source,
     possible_duplicate: false,
     stripe_payment_intent_id: paymentIntent.id,
+    stripe_customer_id: stripeCustomerId,
     created_by: null,
   });
 }

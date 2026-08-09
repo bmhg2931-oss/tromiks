@@ -1,6 +1,9 @@
-// עוזרים טהורים בלבד (בלי import של חבילת "stripe" עצמה) - מותר לייבא מקבצי
-// "use client" (למשל PaymentOnlyForm.tsx). ה-SDK עצמו (lib/stripe.ts) הוא
-// server-only ואסור לו להיכנס ל-bundle של הלקוח
+// עוזרים טהורים בלבד (בלי import בפועל של חבילת "stripe" עצמה - רק "import type",
+// שנמחק לגמרי ב-derivation ולא נכנס ל-bundle) - מותר לייבא מקבצי "use client"
+// (למשל PaymentOnlyForm.tsx) וגם מקבצי "use server" (כל export כאן חייב להישאר
+// סינכרוני/טהור - stripe-sync-actions.ts/stripe-webhook/route.ts מייבאים מכאן
+// כי "use server" מחייב שכל export מהקובץ עצמו יהיה async, וזה לא)
+import type Stripe from "stripe";
 
 // כרטיס אשראי דרך Stripe נתמך רק במטבעות האלה - כמו isNedarimSupportedCurrency
 // ב-lib/nedarim.ts, זו רשימה שמרנית ולא כל ALL_CURRENCIES (lib/types.ts) שכולל
@@ -33,4 +36,10 @@ export function decimalToStripeMinorUnits(amount: number): number {
 
 export function stripeMinorUnitsToDecimal(amount: number): number {
   return amount / 100;
+}
+
+// מזהה הלקוח (Customer) של Stripe - יציב על פני כמה עסקאות מאותו אדם, גם
+// כשאין billing_details (שם/טלפון) על העסקה הבודדת בכלל
+export function stripeCustomerIdOf(pi: Stripe.PaymentIntent): string | null {
+  return typeof pi.customer === "string" ? pi.customer : (pi.customer?.id ?? null);
 }

@@ -154,6 +154,51 @@ describe("fetchAndStageStripeHistoryPage", () => {
   });
 });
 
+describe("fetchAndStageStripeHistoryPage - stripe customer id matching", () => {
+  it("a permanent stripe-customer rule overrides phone-based matching, and stripe_customer_id is stored on the staged row", async () => {
+    mockServerClient = createFakeSupabase({
+      stripe_sync_state: { data: { last_payment_intent_id: null }, error: null },
+      donations: { data: [], error: null },
+      donation_stripe_customer_mapping_rules: { data: [{ stripe_customer_id: "cus_1", contact_id: "c-rule" }], error: null },
+      donation_import_batches: { data: { id: "batch-1" }, error: null },
+      donation_import_rows: { data: [{ id: "row-1" }], error: null },
+    });
+    // ההתאמה לפי טלפון "טועה" בכוונה (ambiguous) כדי לוודא שהכלל הקבוע גובר עליה
+    mockMatchContacts.mockResolvedValue([{ phone_key: null, match_status: "ambiguous", matched_contact_id: null, match_source: null }]);
+    mockPaymentIntentsList.mockResolvedValue({ data: [paymentIntent({ customer: "cus_1", latest_charge: null })], has_more: false });
+
+    const result = await fetchAndStageStripeHistoryPage({});
+
+    expect(result.staged).toBe(1);
+    const insertCall = mockServerClient.calls.find((c) => c.table === "donation_import_rows" && c.method === "insert");
+    const row = (insertCall!.args[0] as Record<string, unknown>[])[0];
+    expect(row).toMatchObject({
+      match_status: "matched",
+      matched_contact_id: "c-rule",
+      match_source: "permanent_rule",
+      stripe_customer_id: "cus_1",
+    });
+  });
+
+  it("falls back to phone-based matching when there is no rule for the stripe customer id", async () => {
+    mockServerClient = createFakeSupabase({
+      stripe_sync_state: { data: { last_payment_intent_id: null }, error: null },
+      donations: { data: [], error: null },
+      donation_stripe_customer_mapping_rules: { data: [], error: null },
+      donation_import_batches: { data: { id: "batch-1" }, error: null },
+      donation_import_rows: { data: [{ id: "row-1" }], error: null },
+    });
+    mockMatchContacts.mockResolvedValue([{ phone_key: "234567", match_status: "matched", matched_contact_id: "c-phone", match_source: "auto_suffix" }]);
+    mockPaymentIntentsList.mockResolvedValue({ data: [paymentIntent({ customer: "cus_unknown" })], has_more: false });
+
+    const result = await fetchAndStageStripeHistoryPage({});
+
+    const insertCall = mockServerClient.calls.find((c) => c.table === "donation_import_rows" && c.method === "insert");
+    const row = (insertCall!.args[0] as Record<string, unknown>[])[0];
+    expect(row).toMatchObject({ match_status: "matched", matched_contact_id: "c-phone", match_source: "auto_suffix" });
+  });
+});
+
 describe("getStripeSyncStatus", () => {
   it("reports the current cursor and last update time", async () => {
     mockServerClient = createFakeSupabase({

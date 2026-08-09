@@ -224,6 +224,22 @@ describe("setRowMatch", () => {
     const updateCall = mockServerClient.calls.find((c) => c.table === "donation_import_rows" && c.method === "update");
     expect((updateCall!.args[0] as { match_source: string }).match_source).toBe("one_time_override");
   });
+
+  it("saves a permanent rule by stripe_customer_id (in addition to phone) for a Stripe row with no phone at all", async () => {
+    mockServerClient = withAuth(
+      createFakeSupabase({
+        donation_import_rows: [{ data: { phone_key: null, stripe_customer_id: "cus_1" }, error: null }, { data: null, error: null }],
+        donation_stripe_customer_mapping_rules: { data: null, error: null },
+      })
+    );
+    const result = await setRowMatch("row-1", "c1", { permanent: true });
+    expect(result.ok).toBe(true);
+    const upsertCall = mockServerClient.calls.find((c) => c.table === "donation_stripe_customer_mapping_rules" && c.method === "upsert");
+    expect(upsertCall).toBeTruthy();
+    expect(upsertCall!.args[0]).toMatchObject({ stripe_customer_id: "cus_1", contact_id: "c1" });
+    const updateCall = mockServerClient.calls.find((c) => c.table === "donation_import_rows" && c.method === "update");
+    expect((updateCall!.args[0] as { match_source: string }).match_source).toBe("permanent_rule");
+  });
 });
 
 describe("commitImportRows", () => {

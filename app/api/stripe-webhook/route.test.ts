@@ -197,4 +197,28 @@ describe("stripe-webhook payment_intent.succeeded (flow ב - staging)", () => {
     expect(res.status).toBe(200);
     expect(mockAdminClient.calls.some((c) => c.table === "donation_import_batches")).toBe(false);
   });
+
+  it("a permanent stripe-customer rule overrides phone-based matching for a staged row", async () => {
+    mockAdminClient = createFakeSupabase({
+      donations: { data: null, error: null },
+      donation_import_rows: [
+        { data: null, error: null }, // existing row check
+        { data: [{ id: "row-1" }], error: null }, // insert result
+      ],
+      donation_import_batches: { data: { id: "batch-1" }, error: null },
+      donation_stripe_customer_mapping_rules: { data: [{ stripe_customer_id: "cus_1", contact_id: "c-rule" }], error: null },
+    });
+    // ההתאמה לפי טלפון "טועה" בכוונה כדי לוודא שהכלל הקבוע גובר עליה
+    mockMatchContacts.mockResolvedValue([{ phone_key: null, match_status: "ambiguous", matched_contact_id: null, match_source: null }]);
+    mockConstructEvent.mockReturnValue({
+      type: "payment_intent.succeeded",
+      data: { object: { id: "pi_external", customer: "cus_1", amount: 5000, currency: "usd", created: 1770000000 } },
+    });
+
+    const res = await POST(makeRequest("{}"));
+    expect(res.status).toBe(200);
+    const insertCall = mockAdminClient.calls.find((c) => c.table === "donation_import_rows" && c.method === "insert");
+    const row = insertCall!.args[0] as Record<string, unknown>;
+    expect(row).toMatchObject({ match_status: "matched", matched_contact_id: "c-rule", match_source: "permanent_rule", stripe_customer_id: "cus_1" });
+  });
 });

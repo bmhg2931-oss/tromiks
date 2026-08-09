@@ -354,7 +354,11 @@ export async function setRowMatch(
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: row, error: rowError } = await supabase.from("donation_import_rows").select("phone_key").eq("id", rowId).single();
+  const { data: row, error: rowError } = await supabase
+    .from("donation_import_rows")
+    .select("phone_key, stripe_customer_id")
+    .eq("id", rowId)
+    .single();
   if (rowError || !row) return { ok: false, error: rowError?.message ?? "שורה לא נמצאה" };
 
   let matchSource: "permanent_rule" | "manual" | "one_time_override" = "manual";
@@ -368,6 +372,21 @@ export async function setRowMatch(
   } else if (row.phone_key) {
     const { data: existingRule } = await supabase.from("donation_phone_mapping_rules").select("id").eq("phone_key", row.phone_key).maybeSingle();
     matchSource = existingRule ? "one_time_override" : "manual";
+  }
+
+  // בנוסף (לא במקום) לכלל הטלפון: שורות מ-Stripe בלי billing_details בכלל (נפוץ
+  // שם) לא היו יכולות לקבל שום שיוך קבוע קודם, כי row.phone_key תמיד null אצלן.
+  // מזהה הלקוח של Stripe יציב על פני עסקאות גם בלי שם/טלפון, אז שומרים כלל קבוע
+  // גם לפיו - אותה תיבת סימון "permanent" קיימת, לא נדרש UI חדש
+  if (options.permanent && row.stripe_customer_id) {
+    const { error: stripeRuleError } = await supabase
+      .from("donation_stripe_customer_mapping_rules")
+      .upsert(
+        { stripe_customer_id: row.stripe_customer_id, contact_id: contactId, created_by: user?.id ?? null },
+        { onConflict: "stripe_customer_id" }
+      );
+    if (stripeRuleError) return { ok: false, error: stripeRuleError.message };
+    matchSource = "permanent_rule";
   }
 
   const { error } = await supabase
