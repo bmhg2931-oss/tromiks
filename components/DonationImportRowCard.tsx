@@ -221,6 +221,26 @@ export default function DonationImportRowCard({
               </div>
             </div>
 
+            {(row.nedarim_transaction_id || row.stripe_payment_intent_id || row.stripe_customer_id) && (
+              <div className="text-xs text-ink-soft space-x-3 space-x-reverse">
+                {row.nedarim_transaction_id && (
+                  <span>
+                    מזהה עסקה (נדרים פלוס): <span className="font-mono">{row.nedarim_transaction_id}</span>
+                  </span>
+                )}
+                {row.stripe_payment_intent_id && (
+                  <span>
+                    מזהה עסקה (Stripe): <span className="font-mono">{row.stripe_payment_intent_id}</span>
+                  </span>
+                )}
+                {row.stripe_customer_id && (
+                  <span>
+                    מזהה לקוח (Stripe): <span className="font-mono">{row.stripe_customer_id}</span>
+                  </span>
+                )}
+              </div>
+            )}
+
             <button type="button" onClick={() => setShowExtra((v) => !v)} className="text-xs text-ink-soft underline">
               {showExtra ? "הסתר שדות נוספים" : "שדות נוספים (קטגוריה, מוקד תשלום, סטטוס...)"}
             </button>
@@ -315,7 +335,11 @@ export default function DonationImportRowCard({
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-1.5 text-xs text-ink-soft">
                 <input type="checkbox" checked={permanent} onChange={(e) => setPermanent(e.target.checked)} />
-                שמור כשיוך קבוע לטלפון זה (יחול על ייבואים עתידיים מכל המקורות)
+                {row.phone_key && row.stripe_customer_id
+                  ? "שמור כשיוך קבוע (לפי טלפון ומזהה הלקוח ב-Stripe) - יחול על ייבואים עתידיים"
+                  : row.stripe_customer_id
+                    ? "שמור כשיוך קבוע למזהה הלקוח הזה ב-Stripe (אין טלפון בעסקה) - יחול על ייבואים עתידיים"
+                    : "שמור כשיוך קבוע לטלפון זה (יחול על ייבואים עתידיים מכל המקורות)"}
               </label>
               <div className="flex items-center gap-2">
                 <NewContactModal />
