@@ -72,6 +72,12 @@ export async function POST(req: NextRequest) {
   const fd = new FormData();
   Object.entries(payload).forEach(([key, value]) => fd.set(key, value));
   fd.set("card_transaction_ok", "1");
+  // חייב להיכתב גם על donations.nedarim_transaction_id עצמו (לא רק על
+  // nedarim_pending_charges למטה) - אחרת סנכרון היסטורי עתידי (ר'
+  // nedarim-sync-actions.ts) לא יזהה שהעסקה הזו כבר קיימת במערכת (הוא בודק
+  // in-donations.nedarim_transaction_id), וייצור לה שורת ייבוא כפולה שתדרוש
+  // שיוך ידני נוסף במקום לדלג עליה בשקט
+  if (body.ID) fd.set("nedarim_transaction_id", String(body.ID));
 
   let resultDonationId: string | null = null;
   let resultPledgeId: string | null = null;
