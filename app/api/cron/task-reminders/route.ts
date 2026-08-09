@@ -65,8 +65,10 @@ function buildReminderEmailHtml(input: {
 // (last_emailed_at) לכל תזכורת שהגיע זמנה, אל המשויך אליה ואל כל מנהלי המערכת.
 // משתמש בלקוח service-role כי אין כאן session משתמש מחובר (RLS דורש authenticated)
 export async function GET(req: NextRequest) {
+  // fail-closed: אם CRON_SECRET לא מוגדר בכלל, נקודת הקצה חסומה (לא פתוחה לכולם) -
+  // בשונה מהגרסה הקודמת שהשאירה את ה-endpoint לגמרי ללא הרשאה כשהמשתנה חסר
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ ok: false, error: "לא מורשה" }, { status: 401 });
   }
 

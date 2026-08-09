@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import {
   canEditDonations,
@@ -14,6 +15,7 @@ import { fetchAllRows } from "@/lib/fetchAllRows";
 import DonationFilterForm from "@/components/DonationFilterForm";
 import AddDonationModal from "@/components/AddDonationModal";
 import DonationsTable from "@/components/DonationsTable";
+import StripeCheckoutReturnBanner from "@/components/StripeCheckoutReturnBanner";
 
 export default async function DonationsPage({
   searchParams,
@@ -222,6 +224,10 @@ export default async function DonationsPage({
         <h1 className="font-serif text-5xl font-bold">תרומות ותשלומים</h1>
         <p className="text-sm text-ink-soft mt-1">ניהול ומעקב נדרים ונדבות</p>
       </div>
+
+      <Suspense fallback={null}>
+        <StripeCheckoutReturnBanner />
+      </Suspense>
 
       <div className="flex items-start flex-wrap gap-3 mb-5">
         <DonationFilterForm

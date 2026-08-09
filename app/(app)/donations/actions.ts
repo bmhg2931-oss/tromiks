@@ -164,6 +164,10 @@ export async function createDonationWithClient(
   const currency = String(formData.get("currency") || "₪");
   const donation_date = String(formData.get("donation_date") || "") || new Date().toISOString().slice(0, 10);
   const cardConfirmed = formData.get("card_transaction_ok") === "1";
+  const source = String(formData.get("source") || "") || "הזנה ידנית";
+  // עקיפת סטטוס מפורשת (למשל ייבוא היסטורי של תרומה שכבר מוחזרת/בוטלה) - אם לא
+  // סופקה, ההתנהגות הרגילה (לפי אישור סליקת אשראי) נשארת בדיוק כמו קודם
+  const explicitStatus = String(formData.get("status") || "");
 
   const basePayload = {
     contact_id,
@@ -172,8 +176,8 @@ export async function createDonationWithClient(
     payment_method,
     payment_hub,
     recurrence: payment_method === "הוראת קבע" ? "חודשי" : "חד-פעמי",
-    status: payment_method === "כרטיס אשראי" ? (cardConfirmed ? "שולם" : "ממתין") : "שולם",
-    source: "הזנה ידנית",
+    status: explicitStatus || (payment_method === "כרטיס אשראי" ? (cardConfirmed ? "שולם" : "ממתין") : "שולם"),
+    source,
     notes: String(formData.get("notes") || "") || null,
     follow_up: String(formData.get("follow_up") || "") || null,
     follow_up_details: String(formData.get("follow_up_details") || "") || null,
@@ -182,6 +186,8 @@ export async function createDonationWithClient(
     account_number: String(formData.get("account_number") || "") || null,
     check_number: String(formData.get("check_number") || "") || null,
     check_date: String(formData.get("check_date") || "") || null,
+    nedarim_transaction_id: String(formData.get("nedarim_transaction_id") || "") || null,
+    stripe_payment_intent_id: String(formData.get("stripe_payment_intent_id") || "") || null,
     created_by: userId,
   };
 

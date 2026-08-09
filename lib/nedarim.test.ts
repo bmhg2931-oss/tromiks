@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { NEDARIM_CURRENCY_CODES, isNedarimSuccessStatus, isNedarimSupportedCurrency } from "@/lib/nedarim";
+import {
+  NEDARIM_CURRENCY_CODES,
+  isNedarimSuccessStatus,
+  isNedarimSupportedCurrency,
+  nedarimCurrencyToSymbol,
+  parseNedarimHistoryDate,
+} from "@/lib/nedarim";
 
 describe("isNedarimSupportedCurrency", () => {
   it("supports only ILS and USD, matching Nedarim Plus's documented API", () => {
@@ -46,5 +52,40 @@ describe("isNedarimSuccessStatus", () => {
   it("still matches the exact success tokens surrounded by incidental whitespace", () => {
     expect(isNedarimSuccessStatus(" OK ")).toBe(true);
     expect(isNedarimSuccessStatus("1")).toBe(true);
+  });
+});
+
+describe("nedarimCurrencyToSymbol", () => {
+  it("maps documented currency codes back to the app's currency symbols", () => {
+    expect(nedarimCurrencyToSymbol("1")).toBe("₪");
+    expect(nedarimCurrencyToSymbol("2")).toBe("$");
+  });
+
+  it("returns null for an undocumented currency code", () => {
+    expect(nedarimCurrencyToSymbol("3")).toBeNull();
+  });
+});
+
+describe("parseNedarimHistoryDate", () => {
+  it("parses dd/mm/yyyy (the format documented for request-side date params)", () => {
+    expect(parseNedarimHistoryDate("15/03/2026")).toBe("2026-03-15");
+  });
+
+  it("parses dd/mm/yyyy with a trailing time component", () => {
+    expect(parseNedarimHistoryDate("15/03/2026 14:30:00")).toBe("2026-03-15");
+  });
+
+  it("parses an ISO-formatted date", () => {
+    expect(parseNedarimHistoryDate("2026-03-15T14:30:00")).toBe("2026-03-15");
+  });
+
+  it("returns null instead of guessing for an unrecognized format", () => {
+    expect(parseNedarimHistoryDate("March 15, 2026")).toBeNull();
+  });
+
+  it("returns null for empty/missing input", () => {
+    expect(parseNedarimHistoryDate("")).toBeNull();
+    expect(parseNedarimHistoryDate(null)).toBeNull();
+    expect(parseNedarimHistoryDate(undefined)).toBeNull();
   });
 });

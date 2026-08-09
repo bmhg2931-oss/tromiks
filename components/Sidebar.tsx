@@ -79,10 +79,7 @@ function ChevronIcon({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-const NAV_ITEMS_BEFORE = [
-  { href: "/contacts", label: "אנשי קשר", Icon: ContactsIcon },
-  { href: "/donations", label: "תרומות ותשלומים", Icon: DonationsIcon },
-];
+const NAV_ITEMS_BEFORE = [{ href: "/contacts", label: "אנשי קשר", Icon: ContactsIcon }];
 const NAV_ITEMS_AFTER = [{ href: "/settings", label: "הגדרות", Icon: SettingsIcon }];
 
 function SubChevron({ open }: { open: boolean }) {
@@ -110,6 +107,7 @@ export default function Sidebar({ campaigns = [] }: { campaigns?: CampaignNavIte
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [campaignsOpen, setCampaignsOpen] = useState(pathname.startsWith("/campaigns"));
+  const [donationsOpen, setDonationsOpen] = useState(pathname.startsWith("/donations"));
 
   const topLevelCampaigns = campaigns.filter((c) => !c.parent_campaign_id);
   const childrenByParent = new Map<string, CampaignNavItem[]>();
@@ -155,6 +153,42 @@ export default function Sidebar({ campaigns = [] }: { campaigns?: CampaignNavIte
             </Link>
           );
         })}
+
+        <div className={`flex items-center ${collapsed ? "justify-center mx-2 rounded-full" : "pr-5 pl-2 rounded-l-full"} ${
+          pathname === "/donations" ? "bg-brass text-white" : "text-[#c7cabd] hover:bg-white/10 hover:text-white"
+        }`}>
+          <Link
+            href="/donations"
+            title={collapsed ? "תרומות ותשלומים" : undefined}
+            className="flex items-center gap-3 py-2.5 text-sm font-semibold flex-1 min-w-0"
+          >
+            <DonationsIcon />
+            {!collapsed && "תרומות ותשלומים"}
+          </Link>
+          {!collapsed && (
+            <button
+              type="button"
+              onClick={() => setDonationsOpen((o) => !o)}
+              aria-label={donationsOpen ? "כיווץ תת-פריטי תרומות" : "הרחבת תת-פריטי תרומות"}
+              className="shrink-0 p-1.5 rounded-md hover:bg-white/10"
+            >
+              <SubChevron open={donationsOpen} />
+            </button>
+          )}
+        </div>
+        {donationsOpen && !collapsed && (
+          <div className="pr-4">
+            <Link
+              href="/donations/mapping"
+              className={`flex items-center gap-1.5 py-2 pr-6 pl-4 text-xs rounded-l-full transition truncate ${
+                pathname === "/donations/mapping" ? "bg-white/15 text-white font-semibold" : "text-[#c7cabd] hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <span className="w-1 h-1 rounded-full bg-current shrink-0" />
+              מיפוי תרומות
+            </Link>
+          </div>
+        )}
 
         <div className={`flex items-center ${collapsed ? "justify-center mx-2 rounded-full" : "pr-5 pl-2 rounded-l-full"} ${
           pathname === "/campaigns" ? "bg-brass text-white" : "text-[#c7cabd] hover:bg-white/10 hover:text-white"

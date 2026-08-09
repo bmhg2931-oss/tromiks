@@ -13,6 +13,7 @@ import PaymentMethodIcon from "./PaymentMethodIcon";
 import NedarimIframe, { type NedarimHandle } from "./NedarimIframe";
 import { createPledgeWithPayment, type PledgeFormResult } from "@/app/(app)/donations/pledge-actions";
 import { createPendingNedarimCharge, getNedarimChargeStatus } from "@/app/(app)/donations/nedarim-actions";
+import { createStripeCheckoutSession } from "@/app/(app)/donations/stripe-actions";
 import { PAYMENT_HUBS, PLEDGE_TYPES, PAY_METHODS, type Contact } from "@/lib/types";
 import { toLocalISODate, parseLocalISODate } from "@/lib/hebrewDate";
 import { getCurrentExchangeRate, getHistoricalExchangeRate, type ExchangeRateResult } from "@/lib/exchangeRate";
@@ -23,6 +24,7 @@ import {
   isNedarimSuccessStatus,
   type NedarimTransactionResult,
 } from "@/lib/nedarim";
+import { isStripeSupportedCurrency } from "@/lib/stripeShared";
 
 type NamedItem = { id: string; name: string };
 
@@ -130,8 +132,10 @@ export default function PledgeAndPaymentForm({
   const isBankTransfer = paymentMethod === "העברה בנקאית";
   const isCheck = paymentMethod === "צ'ק";
   const isLineBased = isCheck || isBankTransfer;
-  const paymentMethodButtons =
-    hub === NEDARIM_SUPPORTED_HUB ? ALL_PAYMENT_METHOD_BUTTONS : ALL_PAYMENT_METHOD_BUTTONS.filter((m) => m !== "כרטיס אשראי");
+  // "כרטיס אשראי" זמין בכל מוקד לתשלום חד-פעמי (ישראל דרך נדרים פלוס, אחרת דרך
+  // Stripe - ר' isCard render למטה) - הוראת קבע נשארת מוגבלת לנדרים פלוס/ישראל
+  // בלבד (ללא שינוי, ר' ההערה על useEffect למטה)
+  const paymentMethodButtons = ALL_PAYMENT_METHOD_BUTTONS;
 
   useEffect(() => {
     if (state?.ok) onSuccess(state);
@@ -144,10 +148,6 @@ export default function PledgeAndPaymentForm({
     if (isStandingOrder && hub === NEDARIM_SUPPORTED_HUB) setPaymentMethod("כרטיס אשראי");
     else if (isStandingOrder) setPaymentMethod("");
   }, [isStandingOrder, hub]);
-
-  useEffect(() => {
-    if (!isStandingOrder && paymentMethod === "כרטיס אשראי" && hub !== NEDARIM_SUPPORTED_HUB) setPaymentMethod("");
-  }, [hub, isStandingOrder, paymentMethod]);
 
   // המרת סכום ההתחייבות למטבע המשותף לפי שער יציג נוכחי
   useEffect(() => {
@@ -280,6 +280,37 @@ export default function PledgeAndPaymentForm({
       Currency: NEDARIM_CURRENCY_CODES[paymentCurrency],
       Groupe: category || "תשלום כללי",
     });
+  }
+
+  // מוקדים שאינם ישראל, תשלום חד-פעמי (לא הוראת קבע): כרטיס אשראי עובר דרך
+  // Stripe Checkout (hosted redirect) - ר' אותה הערה ב-PaymentOnlyForm.tsx
+  async function handleStripeCardSubmit() {
+    if (!contact || !paymentAmount || Number(paymentAmount) <= 0) return;
+    setCardError(null);
+    setCardSubmitting(true);
+    const fields: Record<string, string> = {
+      contact_id: contact.id,
+      category,
+      pledge_type: pledgeType,
+      currency,
+      amount: String(amount),
+      details,
+      pledge_date: pledgeDate,
+      payment_hub: hub,
+      follow_up: followUp,
+      handler,
+      payment_amount: paymentAmount,
+      payment_method: "כרטיס אשראי",
+      payment_currency: paymentCurrency,
+      payment_date: paymentDate,
+    };
+    const result = await createStripeCheckoutSession("pledge_and_payment", fields, Number(paymentAmount), paymentCurrency);
+    if (!result.ok || !result.url) {
+      setCardSubmitting(false);
+      setCardError(result.error ?? "שגיאה ביצירת עסקת Stripe");
+      return;
+    }
+    window.location.href = result.url;
   }
 
   function handleNedarimResult(result: NedarimTransactionResult) {
@@ -499,9 +530,6 @@ export default function PledgeAndPaymentForm({
           {isStandingOrder && hub === NEDARIM_SUPPORTED_HUB && (
             <p className="text-[11px] text-ink-soft mt-1">הוראת קבע מחייבת תשלום בכרטיס אשראי.</p>
           )}
-          {!isStandingOrder && hub !== NEDARIM_SUPPORTED_HUB && (
-            <p className="text-[11px] text-ink-soft mt-1">סליקת אשראי זמינה כרגע רק במוקד תשלום {NEDARIM_SUPPORTED_HUB}.</p>
-          )}
           <input type="hidden" name="payment_method" value={paymentMethod} />
           {methodError && <p className="text-xs text-wine mt-1">{methodError}</p>}
         </div>
@@ -551,9 +579,36 @@ export default function PledgeAndPaymentForm({
 
         {isCard && (
           <div className="space-y-3">
-            {!isNedarimSupportedCurrency(paymentCurrency) ? (
+            {isStandingOrder && hub !== NEDARIM_SUPPORTED_HUB ? (
               <p className="text-sm text-wine border border-wine/40 rounded-lg p-3 bg-white">
-                סליקת אשראי נתמכת רק בתשלום בשקל או דולר.
+                הוראת קבע באשראי זמינה רק במוקד תשלום {NEDARIM_SUPPORTED_HUB}.
+              </p>
+            ) : hub === NEDARIM_SUPPORTED_HUB ? (
+              !isNedarimSupportedCurrency(paymentCurrency) ? (
+                <p className="text-sm text-wine border border-wine/40 rounded-lg p-3 bg-white">
+                  סליקת אשראי נתמכת רק בתשלום בשקל או דולר.
+                </p>
+              ) : !contact ? (
+                <p className="text-sm text-ink-soft border border-line rounded-lg p-3 bg-parchment/40">
+                  יש לבחור איש קשר לפני התשלום.
+                </p>
+              ) : (
+                <>
+                  <NedarimIframe ref={nedarimRef} onResult={handleNedarimResult} />
+                  <button
+                    type="button"
+                    onClick={handleCardSubmit}
+                    disabled={!paymentAmount || Number(paymentAmount) <= 0 || cardSubmitting || cardPolling}
+                    className="w-full bg-brass hover:bg-brass-deep text-white font-semibold rounded-full py-2.5 text-sm transition disabled:opacity-50"
+                  >
+                    {cardPolling ? "מאמת מול נדרים פלוס..." : cardSubmitting ? "מעבד תשלום..." : "שליחה לתשלום מאובטח"}
+                  </button>
+                  {cardError && <p className="text-sm text-wine text-center">{cardError}</p>}
+                </>
+              )
+            ) : !isStripeSupportedCurrency(paymentCurrency) ? (
+              <p className="text-sm text-wine border border-wine/40 rounded-lg p-3 bg-white">
+                סליקת אשראי (Stripe) נתמכת רק במטבעות ₪/$/€/£/CHF.
               </p>
             ) : !contact ? (
               <p className="text-sm text-ink-soft border border-line rounded-lg p-3 bg-parchment/40">
@@ -561,14 +616,14 @@ export default function PledgeAndPaymentForm({
               </p>
             ) : (
               <>
-                <NedarimIframe ref={nedarimRef} onResult={handleNedarimResult} />
+                <p className="text-xs text-ink-soft text-center">התשלום יתבצע דרך דף מאובטח של Stripe - תועבר/י אליו כעת.</p>
                 <button
                   type="button"
-                  onClick={handleCardSubmit}
-                  disabled={!paymentAmount || Number(paymentAmount) <= 0 || cardSubmitting || cardPolling}
+                  onClick={handleStripeCardSubmit}
+                  disabled={!paymentAmount || Number(paymentAmount) <= 0 || cardSubmitting}
                   className="w-full bg-brass hover:bg-brass-deep text-white font-semibold rounded-full py-2.5 text-sm transition disabled:opacity-50"
                 >
-                  {cardPolling ? "מאמת מול נדרים פלוס..." : cardSubmitting ? "מעבד תשלום..." : "שליחה לתשלום מאובטח"}
+                  {cardSubmitting ? "מעביר לתשלום מאובטח..." : "שליחה לתשלום מאובטח (Stripe)"}
                 </button>
                 {cardError && <p className="text-sm text-wine text-center">{cardError}</p>}
               </>

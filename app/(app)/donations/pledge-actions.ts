@@ -204,6 +204,7 @@ export async function createPledgeWithPaymentUsingClient(
   const payment_hub = String(formData.get("payment_hub") || "") || null;
   const payment_currency = String(formData.get("payment_currency") || "") || pledgePayload.currency;
   const cardConfirmed = formData.get("card_transaction_ok") === "1";
+  const explicitStatus = String(formData.get("status") || "");
 
   const { data: donation, error: donationError } = await supabase
     .from("donations")
@@ -217,13 +218,15 @@ export async function createPledgeWithPaymentUsingClient(
       payment_method,
       payment_hub,
       recurrence: pledgePayload.pledge_type === "הוראת קבע" ? "חודשי" : "חד-פעמי",
-      status: payment_method === "כרטיס אשראי" ? (cardConfirmed ? "שולם" : "ממתין") : "שולם",
-      source: "הזנה ידנית",
+      status: explicitStatus || (payment_method === "כרטיס אשראי" ? (cardConfirmed ? "שולם" : "ממתין") : "שולם"),
+      source: String(formData.get("source") || "") || "הזנה ידנית",
       bank_name: String(formData.get("bank_name") || "") || null,
       branch_number: String(formData.get("branch_number") || "") || null,
       account_number: String(formData.get("account_number") || "") || null,
       check_number: String(formData.get("check_number") || "") || null,
       check_date: String(formData.get("check_date") || "") || null,
+      nedarim_transaction_id: String(formData.get("nedarim_transaction_id") || "") || null,
+      stripe_payment_intent_id: String(formData.get("stripe_payment_intent_id") || "") || null,
       created_by: userId,
     })
     .select("id")

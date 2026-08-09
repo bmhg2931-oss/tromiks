@@ -434,3 +434,78 @@ export function canSeeDonations(role: UserRole) {
 export function canSeeReports(role: UserRole) {
   return role === "admin" || role === "treasurer";
 }
+
+// --- מיפוי תרומות (ייבוא מקובץ) ---
+
+export type DonationImportSource = "כללי" | "נדרים פלוס" | "פורטל SOLA" | "Stripe";
+export const DONATION_IMPORT_SOURCES: DonationImportSource[] = ["כללי", "נדרים פלוס", "פורטל SOLA", "Stripe"];
+
+export type DonationRecordType = "pledge" | "pledge_and_payment" | "payment_only";
+export const RECORD_TYPE_LABELS: Record<DonationRecordType, string> = {
+  pledge: "התחייבות",
+  pledge_and_payment: "התחייבות ותשלום",
+  payment_only: "תשלום בלבד",
+};
+// record_type='pledge' מותר רק במקור 'כללי' - נדרים פלוס/SOLA משקפים תמיד כסף שהתקבל
+// בפועל (אין שם תרחיש של "הבטחה בלי תשלום"). זו אכיפה ברמת UI בלבד - האכיפה האמיתית
+// היא טריגר ב-DB (enforce_import_row_record_type), זה כאן רק כדי לא להציע אופציה שתיחסם
+export function availableRecordTypes(source: DonationImportSource): DonationRecordType[] {
+  return source === "כללי" ? ["pledge", "pledge_and_payment", "payment_only"] : ["pledge_and_payment", "payment_only"];
+}
+
+export type DonationImportMatchStatus = "unmatched" | "ambiguous" | "matched" | "imported" | "skipped";
+export type DonationImportMatchSource = "auto_suffix" | "permanent_rule" | "manual" | "one_time_override";
+
+export type DonationImportBatch = {
+  id: string;
+  source: DonationImportSource;
+  filename: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type DonationImportRow = {
+  id: string;
+  batch_id: string;
+  raw: Record<string, string>;
+  donor_name: string | null;
+  phone: string | null;
+  phone_key: string | null;
+  amount: number | null;
+  currency: string;
+  donation_date: string | null;
+  payment_method_raw: string | null;
+  payment_method: string | null;
+  record_type: DonationRecordType;
+  category: string | null;
+  payment_hub: string | null;
+  pledge_type: string | null;
+  handler: string | null;
+  status: string | null;
+  bank_name: string | null;
+  branch_number: string | null;
+  account_number: string | null;
+  check_number: string | null;
+  check_date: string | null;
+  nedarim_transaction_id: string | null;
+  stripe_payment_intent_id: string | null;
+  notes: string | null;
+  match_status: DonationImportMatchStatus;
+  matched_contact_id: string | null;
+  match_source: DonationImportMatchSource | null;
+  possible_duplicate: boolean;
+  created_donation_id: string | null;
+  created_pledge_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  contacts?: { first_name: string; last_name: string } | null;
+};
+
+export type DonationPhoneMappingRule = {
+  id: string;
+  phone_key: string;
+  contact_id: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
