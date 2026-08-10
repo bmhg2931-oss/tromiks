@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { createClient } from "@/lib/supabase/client";
 import ContactForm from "./ContactForm";
+import ContactDetailsView from "./ContactDetailsView";
+import ContactHebrewDatesSection from "./ContactHebrewDatesSection";
 import CloseConfirm from "./CloseConfirm";
 import TabBar from "./TabBar";
 import ContactHistoryTab from "./ContactHistoryTab";
@@ -17,7 +19,7 @@ import { fetchContactHistory, type ContactHistoryRow } from "@/app/(app)/contact
 import { listContactFiles, type ContactFileRow } from "@/app/(app)/contacts/files-actions";
 import type { Contact } from "@/lib/types";
 
-type TabKey = "details" | "history" | "activity" | "files" | "invoice";
+type TabKey = "details" | "activity_center" | "history" | "campaigns" | "activity" | "files" | "invoice";
 type NamedItem = { id: string; name: string };
 
 // אנימציית טעינה - סילואטת איש קשר "נושמת" עם נקודות מקפצות, במקום טקסט "טוען..." יבש
@@ -49,8 +51,10 @@ function ContactLoadingAnimation() {
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "details", label: "פרטי איש קשר" },
+  { key: "activity_center", label: "מרכז פעילות" },
   { key: "activity", label: "יומן פעילות" },
   { key: "history", label: "היסטוריית תרומות" },
+  { key: "campaigns", label: "היסטוריית קמפיינים" },
   { key: "files", label: "קבצים" },
   { key: "invoice", label: "חשבונית" },
 ];
@@ -82,6 +86,15 @@ export default function ContactDetailPanel({
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [tab, setTab] = useState<TabKey>(initialTab);
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+
+  async function loadContact() {
+    const viewRes = await fetchContactForView(id);
+    setContact(viewRes.ok ? viewRes.contact ?? null : null);
+    setHasRedactions(Boolean(viewRes.hasRedactions));
+    setHiddenSections(viewRes.hiddenSections ?? []);
+    return viewRes;
+  }
 
   async function loadHistory() {
     const res = await fetchContactHistory(id);
@@ -105,6 +118,7 @@ export default function ContactDetailPanel({
 
   useEffect(() => {
     let cancelled = false;
+    setIsEditingDetails(false);
     const supabase = createClient();
     (async () => {
       const {
@@ -142,7 +156,8 @@ export default function ContactDetailPanel({
   const boundUpdate = updateContact.bind(null, id);
   const contactName = contact ? `${contact.first_name} ${contact.last_name}`.trim() : "";
   const visibleTabs = TABS.filter((t) => {
-    if ((t.key === "history" || t.key === "activity" || t.key === "invoice") && hiddenSections.includes("donations")) return false;
+    if ((t.key === "history" || t.key === "campaigns" || t.key === "activity" || t.key === "invoice") && hiddenSections.includes("donations"))
+      return false;
     if (t.key === "files" && hiddenSections.includes("files")) return false;
     return true;
   });
@@ -190,25 +205,51 @@ export default function ContactDetailPanel({
 
             <div className="flex-1 overflow-y-auto px-6 pb-6">
               {tab === "details" && (
-                <>
+                <div className="space-y-6">
                   {hasRedactions && (
                     <p className="text-xs text-wine bg-wine/5 border border-wine/30 rounded-lg p-2.5 mb-4">
                       חלק מהשדות מוסתרים עבורך לפי הרשאה, ולכן הכרטיס מוצג לצפייה בלבד.
                     </p>
                   )}
-                  <ContactForm
-                    action={boundUpdate}
-                    initial={contact}
-                    readOnly={!editable || hasRedactions}
-                    onPendingChange={setSaving}
-                    onSuccess={onClose}
-                    onDirty={() => setDirty(true)}
-                  />
-                </>
+                  {isEditingDetails && editable && !hasRedactions ? (
+                    <ContactForm
+                      action={boundUpdate}
+                      initial={contact}
+                      readOnly={false}
+                      onPendingChange={setSaving}
+                      onSuccess={async () => {
+                        await loadContact();
+                        setDirty(false);
+                        setIsEditingDetails(false);
+                      }}
+                      onDirty={() => setDirty(true)}
+                    />
+                  ) : (
+                    <ContactDetailsView contact={contact} editable={editable && !hasRedactions} onEdit={() => setIsEditingDetails(true)} />
+                  )}
+                  <ContactHebrewDatesSection contactId={id} editable={editable && !hasRedactions} />
+                </div>
+              )}
+              {tab === "activity_center" && (
+                <p className="text-sm text-ink-soft">
+                  התוכן של הטאב הזה יתווסף עם בניית מרכז הפעילות - כאן יוצג מרכז הפעילות (גביה, תאריכון, הודעות) ממוקד לאיש הקשר הזה בלבד.
+                </p>
               )}
               {tab === "history" && (
                 <ContactHistoryTab
                   rows={historyRows}
+                  error={historyError}
+                  editable={editable}
+                  contact={contact}
+                  categories={categories}
+                  handlers={handlers}
+                  defaultCurrency={defaultCurrency}
+                  onChanged={loadHistory}
+                />
+              )}
+              {tab === "campaigns" && (
+                <ContactHistoryTab
+                  rows={historyRows ? historyRows.filter((r) => r.donation?.campaign_id || r.pledge?.campaign_id) : null}
                   error={historyError}
                   editable={editable}
                   contact={contact}

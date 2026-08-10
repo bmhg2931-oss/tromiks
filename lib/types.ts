@@ -286,6 +286,21 @@ export type ContactTask = {
   created_at: string;
 };
 
+export type HebrewDateType = "יארצייט" | "יום הולדת" | "אחר";
+export const HEBREW_DATE_TYPES: HebrewDateType[] = ["יארצייט", "יום הולדת", "אחר"];
+
+export type ContactHebrewDate = {
+  id: string;
+  contact_id: string;
+  hebrew_day: number;
+  hebrew_month: string;
+  hebrew_year: number | null;
+  date_type: HebrewDateType;
+  details: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
 export function canSeeCampaigns(role: UserRole) {
   return role !== "gabai";
 }

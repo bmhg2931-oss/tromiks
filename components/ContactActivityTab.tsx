@@ -138,7 +138,13 @@ export default function ContactActivityTab({
     };
   });
 
-  const logEntries: UnifiedEntry[] = (activityLog ?? []).map((l) => {
+  // "צפייה בכרטיס איש קשר" היא רישום צפייה בלבד (נכתב אוטומטית בכל פתיחת חלון,
+  // ר' logContactView ב-ContactDetailPanel.tsx) - לא פעולה אמיתית שבוצעה, ולכן
+  // לא מוצגת כאן. הרשומה עצמה עדיין נכתבת ל-contact_activity_log (לא הוסר ה-
+  // INSERT) כי /settings/activity-log הכללי עדיין משתמש בה - רק תצוגת הטאב הזה מסוננת
+  const logEntries: UnifiedEntry[] = (activityLog ?? [])
+    .filter((l) => l.action !== "צפייה בכרטיס איש קשר")
+    .map((l) => {
     const d = new Date(l.date);
     return {
       id: `l-${l.id}`,

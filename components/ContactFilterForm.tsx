@@ -57,7 +57,7 @@ export default function ContactFilterForm({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [q, setQ] = useState(initialQ || "");
-  const [department, setDepartment] = useState(initialDepartment || "");
+  const [departments, setDepartments] = useState<string[]>(initialDepartment ? initialDepartment.split(",").filter(Boolean) : []);
   const [city, setCity] = useState(initialCity || "");
   const [street, setStreet] = useState(initialStreet || "");
   const [email, setEmail] = useState(initialEmail || "");
@@ -68,10 +68,10 @@ export default function ContactFilterForm({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  function pushParams(overrides: Partial<{ q: string; department: string; city: string; street: string; email: string; tags: string[]; balanceMode: string; balanceAmount: string }>) {
+  function pushParams(overrides: Partial<{ q: string; department: string[]; city: string; street: string; email: string; tags: string[]; balanceMode: string; balanceAmount: string }>) {
     const next = {
       q,
-      department,
+      department: departments,
       city,
       street,
       email,
@@ -82,7 +82,7 @@ export default function ContactFilterForm({
     };
     const params = new URLSearchParams();
     if (next.q) params.set("q", next.q);
-    if (next.department) params.set("department", next.department);
+    if (next.department.length > 0) params.set("department", next.department.join(","));
     if (next.city) params.set("city", next.city);
     if (next.street) params.set("street", next.street);
     if (next.email) params.set("email", next.email);
@@ -118,25 +118,31 @@ export default function ContactFilterForm({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  function toggleDepartment(dep: string) {
+    const next = departments.includes(dep) ? departments.filter((d) => d !== dep) : [...departments, dep];
+    setDepartments(next);
+    pushParams({ department: next });
+  }
+
   function handleBalanceModeChange(next: string) {
     setBalanceMode(next);
     pushParams({ balanceMode: next, balanceAmount: next === "above" || next === "below" ? balanceAmount : "" });
   }
 
   function clearAll() {
-    setDepartment("");
+    setDepartments([]);
     setCity("");
     setStreet("");
     setEmail("");
     setTags([]);
     setBalanceMode("any");
     setBalanceAmount("");
-    pushParams({ department: "", city: "", street: "", email: "", tags: [], balanceMode: "any", balanceAmount: "" });
+    pushParams({ department: [], city: "", street: "", email: "", tags: [], balanceMode: "any", balanceAmount: "" });
   }
 
   function resetAll() {
     setQ("");
-    setDepartment("");
+    setDepartments([]);
     setCity("");
     setStreet("");
     setEmail("");
@@ -144,15 +150,15 @@ export default function ContactFilterForm({
     setBalanceMode("any");
     setBalanceAmount("");
     setPanelOpen(false);
-    pushParams({ q: "", department: "", city: "", street: "", email: "", tags: [], balanceMode: "any", balanceAmount: "" });
+    pushParams({ q: "", department: [], city: "", street: "", email: "", tags: [], balanceMode: "any", balanceAmount: "" });
   }
 
-  const isFiltering = Boolean(q.trim()) || Boolean(department) || Boolean(city) || Boolean(street) || Boolean(email) || tags.length > 0 || balanceMode !== "any";
-  const hasPanelFilters = Boolean(department) || Boolean(city) || Boolean(street) || Boolean(email) || tags.length > 0 || balanceMode !== "any";
+  const isFiltering = Boolean(q.trim()) || departments.length > 0 || Boolean(city) || Boolean(street) || Boolean(email) || tags.length > 0 || balanceMode !== "any";
+  const hasPanelFilters = departments.length > 0 || Boolean(city) || Boolean(street) || Boolean(email) || tags.length > 0 || balanceMode !== "any";
 
   const conditionParts: string[] = [];
   if (q.trim()) conditionParts.push(`חיפוש: "${q.trim()}"`);
-  if (department) conditionParts.push(`מחלקה: ${department}`);
+  if (departments.length > 0) conditionParts.push(`מחלקה: ${departments.join(", ")}`);
   if (city) conditionParts.push(`עיר: ${city}`);
   if (street) conditionParts.push(`רחוב: "${street}"`);
   if (email) conditionParts.push(`דוא"ל: "${email}"`);
@@ -212,15 +218,19 @@ export default function ContactFilterForm({
 
             <div>
               <label className="block text-xs font-semibold text-ink-soft mb-1">מחלקה</label>
-              <AutocompleteInput
-                value={department}
-                onChange={(v) => {
-                  setDepartment(v);
-                  pushParams({ department: v });
-                }}
-                options={DEPARTMENTS}
-                placeholder="כל המחלקות..."
-              />
+              <div className="flex flex-wrap gap-1.5">
+                {DEPARTMENTS.map((dep) => (
+                  <label
+                    key={dep}
+                    className={`flex items-center gap-1.5 text-xs border rounded-full px-2.5 py-1 cursor-pointer transition ${
+                      departments.includes(dep) ? "bg-brass text-white border-brass" : "border-line text-ink-soft hover:bg-parchment"
+                    }`}
+                  >
+                    <input type="checkbox" checked={departments.includes(dep)} onChange={() => toggleDepartment(dep)} className="hidden" />
+                    {dep}
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div>

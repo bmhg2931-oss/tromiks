@@ -28,6 +28,7 @@ export default async function ContactsPage({
   const { q, view, department, city, street, email, tags, balanceMode, balanceAmount } = await searchParams;
   const currentView = view === "cards" ? "cards" : "list";
   const tagList = tags ? tags.split(",").filter(Boolean) : [];
+  const departmentList = department ? department.split(",").filter(Boolean) : [];
   const supabase = await createClient();
 
   const {
@@ -58,7 +59,7 @@ export default async function ContactsPage({
   function buildContactsQuery() {
     let q2 = supabase.from("contacts").select("*").is("deleted_at", null).order("last_name").order("first_name");
     if (!showInactive) q2 = q2.eq("status", "פעיל");
-    if (department) q2 = q2.eq("department", department);
+    if (departmentList.length > 0) q2 = q2.in("department", departmentList);
     if (city) q2 = q2.eq("city", city);
     if (street) q2 = q2.ilike("street", `%${street}%`);
     if (email) q2 = q2.ilike("email", `%${email}%`);
