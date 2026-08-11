@@ -48,6 +48,9 @@ async function handleCheckoutCompleted(supabase: ReturnType<typeof createAdminCl
   });
   fd.set("card_transaction_ok", "1");
   fd.set("stripe_payment_intent_id", paymentIntentId);
+  // אובייקט ה-Checkout Session המלא כפי שהתקבל מ-Stripe - לצפייה עתידית ב"פרטי
+  // התרומה כפי שהתקבלו מהמקור המקורי" (לא רק השדות הבודדים שכבר מופו מה-metadata לעיל)
+  fd.set("raw_source_data", JSON.stringify(session));
 
   const createdBy = metadata.created_by || null;
   if (kind === "payment_only") {

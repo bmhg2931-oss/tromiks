@@ -149,7 +149,7 @@ export default function DonationRow({
         );
       case "notes":
         return (
-          <td key={key} className="p-3 whitespace-nowrap">
+          <td key={key} className="p-3 whitespace-pre-wrap break-words max-w-xs">
             {row.notes || "—"}
           </td>
         );

@@ -144,6 +144,8 @@ describe("nedarim-callback creation flows", () => {
     // שהעסקה הזו כבר קיימת ויצור לה שורת ייבוא כפולה
     const donationFd = mockCreateDonation.mock.calls[0][2] as FormData;
     expect(donationFd.get("nedarim_transaction_id")).toBe("txn-1");
+    // גוף ה-CallBack המלא נשמר גם הוא, לצפייה עתידית ב"פרטי התרומה כפי שהתקבלו מהמקור"
+    expect(JSON.parse(String(donationFd.get("raw_source_data")))).toMatchObject({ Param1: "charge-1", ID: "txn-1", Status: "OK" });
     const updateCall = mockAdminClient.calls.find((c) => c.table === "nedarim_pending_charges" && c.method === "update");
     expect(updateCall!.args[0]).toMatchObject({
       status: "confirmed",

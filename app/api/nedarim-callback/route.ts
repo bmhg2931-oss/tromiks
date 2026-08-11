@@ -78,6 +78,9 @@ export async function POST(req: NextRequest) {
   // in-donations.nedarim_transaction_id), וייצור לה שורת ייבוא כפולה שתדרוש
   // שיוך ידני נוסף במקום לדלג עליה בשקט
   if (body.ID) fd.set("nedarim_transaction_id", String(body.ID));
+  // גוף ה-CallBack המלא כפי שהתקבל מנדרים פלוס - לצפייה עתידית ב"פרטי התרומה
+  // כפי שהתקבלו מהמקור המקורי" (לא רק השדות הבודדים שכבר נשלפו ממנו לעיל)
+  fd.set("raw_source_data", JSON.stringify(body));
 
   let resultDonationId: string | null = null;
   let resultPledgeId: string | null = null;

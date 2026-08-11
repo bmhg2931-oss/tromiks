@@ -447,6 +447,8 @@ export async function commitImportRows(rowIds: string[]): Promise<{ succeeded: s
         setIfPresent(fd, "check_number", row.check_number);
         setIfPresent(fd, "check_date", row.check_date);
         setIfPresent(fd, "nedarim_transaction_id", row.nedarim_transaction_id);
+        setIfPresent(fd, "stripe_payment_intent_id", row.stripe_payment_intent_id);
+        setIfPresent(fd, "raw_source_data", row.raw ? JSON.stringify(row.raw) : null);
         const result = await createDonation(null, fd);
         if (!result.ok) throw new Error(result.error ?? "שגיאה ביצירת התרומה");
         donationId = result.donationId ?? null;
@@ -489,6 +491,8 @@ export async function commitImportRows(rowIds: string[]): Promise<{ succeeded: s
         setIfPresent(fd, "check_number", row.check_number);
         setIfPresent(fd, "check_date", row.check_date);
         setIfPresent(fd, "nedarim_transaction_id", row.nedarim_transaction_id);
+        setIfPresent(fd, "stripe_payment_intent_id", row.stripe_payment_intent_id);
+        setIfPresent(fd, "raw_source_data", row.raw ? JSON.stringify(row.raw) : null);
         const result = await createPledgeWithPayment(null, fd);
         if (!result.ok) throw new Error(result.error ?? "שגיאה ביצירת ההתחייבות והתשלום");
         pledgeId = result.pledgeId ?? null;

@@ -5,6 +5,18 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { syncPledgeStatus, insertPaymentLines } from "./actions";
 
+// כפילות מכוונת מ-actions.ts (לא ניתן לייצא פונקציה סינכרונית מקובץ "use server" -
+// כל export משם חייב להיות async) - ר' אותה הערה ב-actions.ts
+function parseRawSourceData(formData: FormData): Record<string, unknown> | null {
+  const raw = formData.get("raw_source_data");
+  if (!raw) return null;
+  try {
+    return JSON.parse(String(raw));
+  } catch {
+    return null;
+  }
+}
+
 export type PledgeFormResult = {
   ok: boolean;
   error?: string;
@@ -227,6 +239,7 @@ export async function createPledgeWithPaymentUsingClient(
       check_date: String(formData.get("check_date") || "") || null,
       nedarim_transaction_id: String(formData.get("nedarim_transaction_id") || "") || null,
       stripe_payment_intent_id: String(formData.get("stripe_payment_intent_id") || "") || null,
+      raw_source_data: parseRawSourceData(formData),
       created_by: userId,
     })
     .select("id")

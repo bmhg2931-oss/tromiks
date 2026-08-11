@@ -16,6 +16,7 @@ export type PaymentLine = {
   checkNumber: string;
   checkDate: string;
   filePath?: string;
+  fileName?: string;
 };
 
 export function newPaymentLine(): PaymentLine {
@@ -164,7 +165,13 @@ export default function MultiPaymentLines({
       createdLines.push(nl);
       return nl;
     });
-    const next = [...linesRef.current, ...createdLines];
+    // כל שורת יעד (קיימת-ריקה או חדשה) מקבלת מיד את שם הקובץ המתאים לה - גם אם
+    // הפענוח האוטומטי ייכשל, יהיה ברור למשתמש איזה קובץ ספציפי לא פוענח
+    const fileNameById = new Map(targetLines.map((l, i) => [l.id, files[i].name]));
+    const next = [
+      ...linesRef.current.map((l) => (fileNameById.has(l.id) ? { ...l, fileName: fileNameById.get(l.id) } : l)),
+      ...createdLines.map((l) => ({ ...l, fileName: fileNameById.get(l.id) })),
+    ];
     linesRef.current = next;
     onChange(next);
     await Promise.all(files.map((file, i) => processScannedFile(targetLines[i].id, file)));
@@ -220,6 +227,7 @@ export default function MultiPaymentLines({
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-ink-soft">
               {itemLabel} {idx + 1}
+              {line.fileName && <span className="font-normal text-ink-soft/70"> · {line.fileName}</span>}
             </span>
             <div className="flex items-center gap-1">
               {mode === "check" && line.filePath && (

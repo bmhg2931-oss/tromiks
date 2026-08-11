@@ -108,6 +108,8 @@ describe("stripe-webhook checkout.session.completed (flow א - Checkout שלנו
     expect(fd.get("stripe_payment_intent_id")).toBe("pi_1");
     expect(fd.get("contact_id")).toBe("c1");
     expect(fd.get("kind")).toBeNull();
+    // אובייקט ה-Checkout Session המלא נשמר גם הוא, לצפייה עתידית ב"פרטי התרומה כפי שהתקבלו מהמקור"
+    expect(JSON.parse(String(fd.get("raw_source_data")))).toMatchObject({ payment_intent: "pi_1" });
   });
 
   it("creates a pledge+payment for a pledge_and_payment Checkout Session", async () => {

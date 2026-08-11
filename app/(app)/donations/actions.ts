@@ -5,6 +5,20 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentExchangeRate } from "@/lib/exchangeRate";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+// מנתח את הנתונים הגולמיים המלאים מהמקור (JSON מוצפן כמחרוזת ב-FormData, ר'
+// nedarim-callback/route.ts, stripe-webhook/route.ts, mapping-actions.ts) -
+// ברירת מחדל null בשקט אם השדה חסר/לא תקין, כדי שקוראים קיימים שלא שולחים
+// אותו (רוב הזרימות הרגילות, כמו הזנה ידנית) לא יושפעו
+function parseRawSourceData(formData: FormData): Record<string, unknown> | null {
+  const raw = formData.get("raw_source_data");
+  if (!raw) return null;
+  try {
+    return JSON.parse(String(raw));
+  } catch {
+    return null;
+  }
+}
+
 export type DonationFormResult = {
   ok: boolean;
   error?: string;
@@ -188,6 +202,7 @@ export async function createDonationWithClient(
     check_date: String(formData.get("check_date") || "") || null,
     nedarim_transaction_id: String(formData.get("nedarim_transaction_id") || "") || null,
     stripe_payment_intent_id: String(formData.get("stripe_payment_intent_id") || "") || null,
+    raw_source_data: parseRawSourceData(formData),
     created_by: userId,
   };
 
